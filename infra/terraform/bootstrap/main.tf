@@ -251,6 +251,8 @@ resource "aws_iam_role_policy" "github_actions_terraform_infra" {
           "ec2:DeleteNatGateway",
           "ec2:AllocateAddress",
           "ec2:ReleaseAddress",
+          "ec2:AssociateAddress",
+          "ec2:DisassociateAddress",
           "ec2:CreateSecurityGroup",
           "ec2:DeleteSecurityGroup",
           "ec2:AuthorizeSecurityGroupIngress",
