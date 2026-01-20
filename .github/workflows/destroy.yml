@@ -67,6 +67,18 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform apply -auto-approve tfplan
 
+      - name: Clean up Terraform state for fresh rebuild
+        if: success()
+        run: |
+          # Delete the state file so next apply starts fresh
+          aws s3 rm s3://attendancems-terraform-state/prod/terraform.tfstate || true
+          # Clean up any stale DynamoDB entries
+          aws dynamodb delete-item --table-name attendancems-terraform-locks \
+            --key '{"LockID":{"S":"attendancems-terraform-state/prod/terraform.tfstate"}}' || true
+          aws dynamodb delete-item --table-name attendancems-terraform-locks \
+            --key '{"LockID":{"S":"attendancems-terraform-state/prod/terraform.tfstate-md5"}}' || true
+          echo "✅ Terraform state cleaned up for fresh rebuild"
+
       - name: Destruction summary
         if: always()
         run: |

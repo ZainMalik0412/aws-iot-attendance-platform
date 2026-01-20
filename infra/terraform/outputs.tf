@@ -39,10 +39,6 @@ output "rds_database_name" {
   value       = aws_db_instance.main.db_name
 }
 
-output "github_actions_role_arn" {
-  description = "GitHub Actions IAM role ARN - Add this as AWS_ROLE_ARN secret in GitHub"
-  value       = aws_iam_role.github_actions.arn
-}
 
 output "vpc_id" {
   description = "VPC ID"
