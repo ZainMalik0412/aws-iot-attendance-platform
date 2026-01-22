@@ -71,7 +71,10 @@ export default function SessionsPage() {
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
       toast({ title: 'Session started' })
     },
-    onError: () => toast({ variant: 'destructive', title: 'Failed to start session' }),
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || 'Failed to start session'
+      toast({ variant: 'destructive', title: 'Error', description: message })
+    },
   })
 
   const pauseMutation = useMutation({
@@ -80,7 +83,10 @@ export default function SessionsPage() {
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
       toast({ title: 'Session paused' })
     },
-    onError: () => toast({ variant: 'destructive', title: 'Failed to pause session' }),
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || 'Failed to pause session'
+      toast({ variant: 'destructive', title: 'Error', description: message })
+    },
   })
 
   const resumeMutation = useMutation({
@@ -89,7 +95,10 @@ export default function SessionsPage() {
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
       toast({ title: 'Session resumed' })
     },
-    onError: () => toast({ variant: 'destructive', title: 'Failed to resume session' }),
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || 'Failed to resume session'
+      toast({ variant: 'destructive', title: 'Error', description: message })
+    },
   })
 
   const endMutation = useMutation({
@@ -98,7 +107,10 @@ export default function SessionsPage() {
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
       toast({ title: 'Session ended' })
     },
-    onError: () => toast({ variant: 'destructive', title: 'Failed to end session' }),
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || 'Failed to end session'
+      toast({ variant: 'destructive', title: 'Error', description: message })
+    },
   })
 
   const createMutation = useMutation({
@@ -109,7 +121,10 @@ export default function SessionsPage() {
       setIsCreateOpen(false)
       resetForm()
     },
-    onError: () => toast({ variant: 'destructive', title: 'Failed to create session' }),
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || 'Failed to create session'
+      toast({ variant: 'destructive', title: 'Error', description: message })
+    },
   })
 
   const deleteMutation = useMutation({
@@ -118,7 +133,10 @@ export default function SessionsPage() {
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
       toast({ title: 'Session deleted' })
     },
-    onError: () => toast({ variant: 'destructive', title: 'Failed to delete session' }),
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || 'Failed to delete session'
+      toast({ variant: 'destructive', title: 'Error', description: message })
+    },
   })
 
   const canManageSessions = user?.role === 'lecturer' || user?.role === 'admin'

@@ -69,7 +69,10 @@ export default function ModulesPage() {
       setIsCreateOpen(false)
       resetForm()
     },
-    onError: () => toast({ variant: 'destructive', title: 'Failed to create module' }),
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || 'Failed to create module'
+      toast({ variant: 'destructive', title: 'Error', description: message })
+    },
   })
 
   const updateMutation = useMutation({
@@ -80,7 +83,10 @@ export default function ModulesPage() {
       setIsEditOpen(false)
       resetForm()
     },
-    onError: () => toast({ variant: 'destructive', title: 'Failed to update module' }),
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || 'Failed to update module'
+      toast({ variant: 'destructive', title: 'Error', description: message })
+    },
   })
 
   const deleteMutation = useMutation({
@@ -89,7 +95,10 @@ export default function ModulesPage() {
       queryClient.invalidateQueries({ queryKey: ['modules'] })
       toast({ title: 'Module deleted successfully' })
     },
-    onError: () => toast({ variant: 'destructive', title: 'Failed to delete module' }),
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || 'Failed to delete module'
+      toast({ variant: 'destructive', title: 'Error', description: message })
+    },
   })
 
   const enrolMutation = useMutation({
@@ -98,7 +107,10 @@ export default function ModulesPage() {
       refetchEnrolled()
       toast({ title: 'Student enrolled successfully' })
     },
-    onError: () => toast({ variant: 'destructive', title: 'Failed to enrol student' }),
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || 'Failed to enrol student'
+      toast({ variant: 'destructive', title: 'Error', description: message })
+    },
   })
 
   const unenrolMutation = useMutation({
@@ -107,7 +119,10 @@ export default function ModulesPage() {
       refetchEnrolled()
       toast({ title: 'Student unenrolled successfully' })
     },
-    onError: () => toast({ variant: 'destructive', title: 'Failed to unenrol student' }),
+    onError: (error: any) => {
+      const message = error?.response?.data?.detail || 'Failed to unenrol student'
+      toast({ variant: 'destructive', title: 'Error', description: message })
+    },
   })
 
   const resetForm = () => {
