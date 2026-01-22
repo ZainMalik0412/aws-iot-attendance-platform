@@ -58,8 +58,12 @@ resource "aws_db_instance" "main" {
   multi_az               = false
   publicly_accessible    = false
   skip_final_snapshot    = false
-  final_snapshot_identifier = "${var.app_name}-db-final-snapshot"
+  final_snapshot_identifier = "${var.app_name}-db-final-${formatdate("YYYY-MM-DD-hh-mm", timestamp())}"
   deletion_protection    = false
+
+  lifecycle {
+    ignore_changes = [final_snapshot_identifier]
+  }
 
   # Restore from snapshot if one exists
   snapshot_identifier = var.db_snapshot_identifier
