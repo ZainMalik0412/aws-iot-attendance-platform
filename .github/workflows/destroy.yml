@@ -59,6 +59,14 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init
 
+      - name: Force unlock Terraform state if locked
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          # Clean up any stale locks from previous failed runs
+          aws dynamodb delete-item --table-name attendancems-terraform-locks \
+            --key '{"LockID":{"S":"attendancems-terraform-state/prod/terraform.tfstate"}}' 2>/dev/null || true
+          echo "✅ Cleared any stale state locks"
+
       - name: Delete existing RDS final snapshot if exists
         run: |
           # Delete existing final snapshot to prevent 'DBSnapshotAlreadyExists' error
