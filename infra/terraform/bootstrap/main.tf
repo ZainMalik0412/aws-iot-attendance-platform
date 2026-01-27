@@ -366,7 +366,8 @@ resource "aws_iam_role_policy" "github_actions_terraform_infra" {
           "acm:RequestCertificate",
           "acm:DeleteCertificate",
           "acm:AddTagsToCertificate",
-          "acm:RemoveTagsFromCertificate"
+          "acm:RemoveTagsFromCertificate",
+          "acm:GetCertificate"
         ]
         Resource = "*"
       },
