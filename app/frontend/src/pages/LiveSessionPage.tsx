@@ -231,11 +231,11 @@ export default function LiveSessionPage() {
     }
   }, [recognizeMutation])
 
-  // Auto-capture every 750ms (2x faster) when active and recognizing
+  // Auto-capture every 500ms (3x faster) for detecting moving faces
   useEffect(() => {
     if (!isRecognizing || sessionState?.status !== 'active') return
 
-    const interval = setInterval(captureAndRecognize, 750)
+    const interval = setInterval(captureAndRecognize, 500)
     return () => clearInterval(interval)
   }, [isRecognizing, sessionState?.status, captureAndRecognize])
 

@@ -25,9 +25,12 @@ from scipy.spatial.distance import cosine
 
 from app.config import settings
 
-# Load OpenCV's pre-trained Haar cascade for face detection
-# This is much more accurate than simple image validation
-_face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# Load OpenCV's pre-trained Haar cascades for face detection
+# Using multiple cascades for better detection of moving faces
+_face_cascade_default = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+_face_cascade_alt = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt.xml')
+_face_cascade_alt2 = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
+_profile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_profileface.xml')
 
 logger = logging.getLogger(__name__)
 
@@ -54,10 +57,13 @@ def decode_base64_image(image_base64: str) -> Image.Image:
 
 def detect_faces(image: Image.Image) -> List[Tuple[int, int, int, int]]:
     """
-    Detect faces in an image using OpenCV's Haar cascade classifier.
+    Detect faces in an image using multiple OpenCV Haar cascade classifiers.
     
-    This provides accurate face detection that only identifies actual human faces,
-    not hands or other objects.
+    Optimized for detecting moving faces (e.g., people walking past):
+    - Uses multiple cascade classifiers for better coverage
+    - Lower minNeighbors for faster detection with motion
+    - Includes profile face detection for side views
+    - Applies histogram equalization for better detection in varying lighting
     
     Returns list of face locations as (top, right, bottom, left) tuples.
     """
@@ -72,29 +78,109 @@ def detect_faces(image: Image.Image) -> List[Tuple[int, int, int, int]]:
     # Convert to grayscale for face detection
     gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
     
-    # Detect faces using Haar cascade
-    # Parameters tuned for speed and accuracy:
-    # - scaleFactor=1.1: smaller value = more accurate but slower
-    # - minNeighbors=5: higher = fewer false positives
-    # - minSize=(30, 30): minimum face size to detect
-    faces = _face_cascade.detectMultiScale(
-        gray,
-        scaleFactor=1.1,
-        minNeighbors=5,
-        minSize=(30, 30),
-        flags=cv2.CASCADE_SCALE_IMAGE
-    )
+    # Apply histogram equalization to improve detection in varying lighting
+    gray = cv2.equalizeHist(gray)
     
-    # Convert OpenCV format (x, y, w, h) to (top, right, bottom, left)
-    face_locations = []
-    for (x, y, w, h) in faces:
+    all_faces = []
+    
+    # Detection parameters optimized for MOVING faces:
+    # - scaleFactor=1.05: smaller steps = better detection of faces at various distances
+    # - minNeighbors=3: lower = catches more faces even with motion blur
+    # - minSize=(20, 20): smaller minimum = catches faces further away
+    detection_params = {
+        'scaleFactor': 1.05,
+        'minNeighbors': 3,
+        'minSize': (20, 20),
+        'flags': cv2.CASCADE_SCALE_IMAGE
+    }
+    
+    # Try multiple cascades for better coverage
+    # Default cascade - good general detection
+    faces_default = _face_cascade_default.detectMultiScale(gray, **detection_params)
+    all_faces.extend(faces_default)
+    
+    # Alt2 cascade - better for slightly rotated faces
+    faces_alt2 = _face_cascade_alt2.detectMultiScale(gray, **detection_params)
+    all_faces.extend(faces_alt2)
+    
+    # Profile cascade for side views (people walking past)
+    # Check both left and right profiles
+    faces_profile = _profile_cascade.detectMultiScale(gray, **detection_params)
+    all_faces.extend(faces_profile)
+    
+    # Flip image and check for right-facing profiles
+    gray_flipped = cv2.flip(gray, 1)
+    faces_profile_flipped = _profile_cascade.detectMultiScale(gray_flipped, **detection_params)
+    # Adjust coordinates for flipped detections
+    img_width = gray.shape[1]
+    for (x, y, w, h) in faces_profile_flipped:
+        # Mirror the x coordinate back
+        x_mirrored = img_width - x - w
+        all_faces.append((x_mirrored, y, w, h))
+    
+    # Remove duplicate/overlapping detections using non-maximum suppression
+    face_locations = _non_max_suppression(list(all_faces), overlap_thresh=0.3)
+    
+    return face_locations
+
+
+def _non_max_suppression(boxes: List, overlap_thresh: float = 0.3) -> List[Tuple[int, int, int, int]]:
+    """
+    Apply non-maximum suppression to remove overlapping face detections.
+    
+    This prevents the same face from being detected multiple times
+    by different cascades.
+    """
+    if len(boxes) == 0:
+        return []
+    
+    # Convert to numpy array
+    boxes_array = np.array([[x, y, x + w, y + h] for (x, y, w, h) in boxes], dtype=np.float32)
+    
+    # Get coordinates
+    x1 = boxes_array[:, 0]
+    y1 = boxes_array[:, 1]
+    x2 = boxes_array[:, 2]
+    y2 = boxes_array[:, 3]
+    
+    # Calculate areas
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    
+    # Sort by bottom-right y coordinate (larger faces tend to be closer)
+    indices = np.argsort(y2)
+    
+    picked = []
+    while len(indices) > 0:
+        # Pick the last (largest y2) box
+        last = len(indices) - 1
+        i = indices[last]
+        picked.append(i)
+        
+        # Find overlap with remaining boxes
+        xx1 = np.maximum(x1[i], x1[indices[:last]])
+        yy1 = np.maximum(y1[i], y1[indices[:last]])
+        xx2 = np.minimum(x2[i], x2[indices[:last]])
+        yy2 = np.minimum(y2[i], y2[indices[:last]])
+        
+        # Calculate overlap ratio
+        w = np.maximum(0, xx2 - xx1 + 1)
+        h = np.maximum(0, yy2 - yy1 + 1)
+        overlap = (w * h) / areas[indices[:last]]
+        
+        # Remove boxes with high overlap
+        indices = np.delete(indices, np.concatenate(([last], np.where(overlap > overlap_thresh)[0])))
+    
+    # Convert back to (top, right, bottom, left) format
+    result = []
+    for i in picked:
+        x, y, w, h = boxes[i]
         top = y
         right = x + w
         bottom = y + h
         left = x
-        face_locations.append((top, right, bottom, left))
+        result.append((top, right, bottom, left))
     
-    return face_locations
+    return result
 
 
 def _image_to_embedding(image: Image.Image) -> np.ndarray:

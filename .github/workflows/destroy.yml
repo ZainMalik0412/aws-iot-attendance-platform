@@ -66,19 +66,26 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init
 
-      - name: Delete existing RDS final snapshot if exists
+      - name: Save latest RDS snapshot identifier for restoration
         run: |
-          # Delete existing final snapshot to prevent 'DBSnapshotAlreadyExists' error
-          SNAPSHOT_ID="attendancems-db-final-snapshot"
-          echo "Checking for existing snapshot: $SNAPSHOT_ID"
-          if aws rds describe-db-snapshots --db-snapshot-identifier "$SNAPSHOT_ID" 2>/dev/null; then
-            echo "Found existing snapshot, deleting..."
-            aws rds delete-db-snapshot --db-snapshot-identifier "$SNAPSHOT_ID"
-            echo "Waiting for snapshot deletion..."
-            aws rds wait db-snapshot-deleted --db-snapshot-identifier "$SNAPSHOT_ID" || true
-            echo "✅ Snapshot deleted"
+          # Find the latest snapshot to preserve for data persistence
+          LATEST_SNAPSHOT=$(aws rds describe-db-snapshots \
+            --db-instance-identifier attendancems-db \
+            --query 'DBSnapshots | sort_by(@, &SnapshotCreateTime) | [-1].DBSnapshotIdentifier' \
+            --output text 2>/dev/null || echo "none")
+          
+          if [ "$LATEST_SNAPSHOT" != "none" ] && [ "$LATEST_SNAPSHOT" != "None" ] && [ -n "$LATEST_SNAPSHOT" ]; then
+            echo "📸 Latest snapshot found: $LATEST_SNAPSHOT"
+            echo "This snapshot will be PRESERVED for data restoration on next deploy"
+            # Store in SSM Parameter for the rebuild workflow to use
+            aws ssm put-parameter \
+              --name "/attendancems/latest-db-snapshot" \
+              --value "$LATEST_SNAPSHOT" \
+              --type String \
+              --overwrite || true
+            echo "✅ Snapshot identifier saved to SSM Parameter Store"
           else
-            echo "No existing snapshot found, proceeding..."
+            echo "No existing snapshots found"
           fi
 
       - name: Terraform Plan Destroy

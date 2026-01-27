@@ -301,9 +301,20 @@ resource "aws_iam_role_policy" "github_actions_terraform_infra" {
           "rds:RemoveTagsFromResource",
           "rds:CreateDBSnapshot",
           "rds:DeleteDBSnapshot",
-          "rds:RestoreDBInstanceFromDBSnapshot"
+          "rds:RestoreDBInstanceFromDBSnapshot",
+          "rds:DescribeDBSnapshots"
         ]
         Resource = "*"
+      },
+      {
+        Sid    = "SSMParameterAccess"
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:PutParameter",
+          "ssm:DeleteParameter"
+        ]
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/attendancems/*"
       },
       {
         Sid    = "TerraformSecretsAccess"

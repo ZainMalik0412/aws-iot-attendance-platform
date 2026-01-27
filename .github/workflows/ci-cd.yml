@@ -173,13 +173,52 @@ jobs:
         with:
           terraform_version: "1.5.7"
 
+      - name: Force unlock Terraform state if locked
+        run: |
+          # Clean up any stale locks from previous failed runs
+          aws dynamodb delete-item --table-name attendancems-terraform-locks \
+            --key '{"LockID":{"S":"attendancems-terraform-state/prod/terraform.tfstate"}}' 2>/dev/null || true
+          echo "✅ Cleared any stale state locks"
+
+      - name: Check for RDS snapshot to restore from
+        id: check-snapshot
+        run: |
+          # Check if there's a saved snapshot identifier from a previous destroy
+          SNAPSHOT_ID=$(aws ssm get-parameter \
+            --name "/attendancems/latest-db-snapshot" \
+            --query 'Parameter.Value' \
+            --output text 2>/dev/null || echo "")
+          
+          if [ -n "$SNAPSHOT_ID" ] && [ "$SNAPSHOT_ID" != "None" ]; then
+            # Verify the snapshot actually exists
+            if aws rds describe-db-snapshots --db-snapshot-identifier "$SNAPSHOT_ID" &>/dev/null; then
+              echo "📸 Found snapshot to restore from: $SNAPSHOT_ID"
+              echo "snapshot_id=$SNAPSHOT_ID" >> $GITHUB_OUTPUT
+              echo "has_snapshot=true" >> $GITHUB_OUTPUT
+            else
+              echo "Snapshot $SNAPSHOT_ID no longer exists"
+              echo "has_snapshot=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "No saved snapshot found, will create fresh database"
+            echo "has_snapshot=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init
 
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply -auto-approve
+        run: |
+          if [ "${{ steps.check-snapshot.outputs.has_snapshot }}" == "true" ]; then
+            echo "🔄 Restoring database from snapshot: ${{ steps.check-snapshot.outputs.snapshot_id }}"
+            terraform apply -auto-approve -lock-timeout=5m \
+              -var="db_snapshot_identifier=${{ steps.check-snapshot.outputs.snapshot_id }}"
+          else
+            echo "📦 Creating fresh database"
+            terraform apply -auto-approve -lock-timeout=5m
+          fi
 
   # ============================================
   # BUILD JOB - Builds and pushes Docker image (after infra exists)
