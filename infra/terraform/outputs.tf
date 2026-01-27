@@ -62,5 +62,5 @@ output "cloudwatch_log_group" {
 
 output "acm_certificate_arn" {
   description = "ACM certificate ARN"
-  value       = aws_acm_certificate.main.arn
+  value       = local.certificate_arn
 }
