@@ -180,11 +180,12 @@ jobs:
       - name: Terraform Destroy
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          # Use aggressive parallelism and short refresh timeout for faster destroy
+          # Use refresh=true so terraform sees pre-deleted resources are gone
+          # Use aggressive parallelism for faster destroy
           terraform destroy -auto-approve \
             -lock-timeout=5m \
             -parallelism=50 \
-            -refresh=false \
+            -refresh=true \
             || echo "⚠️ Terraform destroy completed with warnings"
 
       - name: Delete Route53 DNS records
