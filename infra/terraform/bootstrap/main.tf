@@ -377,7 +377,10 @@ resource "aws_iam_role_policy" "github_actions_terraform_infra" {
         Effect = "Allow"
         Action = [
           "route53:ChangeResourceRecordSets",
-          "route53:GetChange"
+          "route53:GetChange",
+          "route53:ListHostedZones",
+          "route53:ListHostedZonesByName",
+          "route53:ListResourceRecordSets"
         ]
         Resource = [
           "arn:aws:route53:::hostedzone/*",

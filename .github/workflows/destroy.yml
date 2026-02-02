@@ -66,6 +66,68 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init
 
+      - name: Delete Route53 DNS records before destroy
+        run: |
+          echo "🗑️ Cleaning up Route53 DNS records..."
+          
+          # Get the hosted zone ID for zainecs.com
+          ZONE_ID=$(aws route53 list-hosted-zones-by-name \
+            --dns-name zainecs.com \
+            --query 'HostedZones[0].Id' \
+            --output text 2>/dev/null | sed 's|/hostedzone/||' || echo "")
+          
+          if [ -n "$ZONE_ID" ] && [ "$ZONE_ID" != "None" ]; then
+            echo "  Found hosted zone: $ZONE_ID"
+            
+            # Delete the A record for tm.zainecs.com
+            echo "  Deleting A record for tm.zainecs.com..."
+            RECORD_SET=$(aws route53 list-resource-record-sets \
+              --hosted-zone-id "$ZONE_ID" \
+              --query "ResourceRecordSets[?Name=='tm.zainecs.com.']" \
+              --output json 2>/dev/null || echo "[]")
+            
+            if [ "$RECORD_SET" != "[]" ] && [ -n "$RECORD_SET" ]; then
+              # Create change batch to delete the record
+              aws route53 change-resource-record-sets \
+                --hosted-zone-id "$ZONE_ID" \
+                --change-batch '{
+                  "Changes": [{
+                    "Action": "DELETE",
+                    "ResourceRecordSet": '"$RECORD_SET"'[0]
+                  }]
+                }' 2>/dev/null || echo "  Record may already be deleted"
+              echo "  ✅ A record deleted"
+            else
+              echo "  No A record found for tm.zainecs.com"
+            fi
+            
+            # Delete any ACM validation CNAME records
+            echo "  Deleting ACM validation records..."
+            VALIDATION_RECORDS=$(aws route53 list-resource-record-sets \
+              --hosted-zone-id "$ZONE_ID" \
+              --query "ResourceRecordSets[?Type=='CNAME' && contains(Name, '_acm-challenge')]" \
+              --output json 2>/dev/null || echo "[]")
+            
+            if [ "$VALIDATION_RECORDS" != "[]" ] && [ -n "$VALIDATION_RECORDS" ]; then
+              echo "$VALIDATION_RECORDS" | jq -c '.[]' | while read record; do
+                aws route53 change-resource-record-sets \
+                  --hosted-zone-id "$ZONE_ID" \
+                  --change-batch '{
+                    "Changes": [{
+                      "Action": "DELETE",
+                      "ResourceRecordSet": '"$record"'
+                    }]
+                  }' 2>/dev/null || true
+              done
+              echo "  ✅ Validation records deleted"
+            else
+              echo "  No validation records found"
+            fi
+          else
+            echo "  Hosted zone not found or already cleaned"
+          fi
+          echo "✅ Route53 cleanup complete"
+
       - name: Save latest RDS snapshot and clean up old ones
         run: |
           echo "📸 Finding and preserving latest RDS snapshot..."
@@ -175,6 +237,69 @@ jobs:
             fi
           done
           echo "✅ RDS snapshot cleanup complete"
+
+      - name: Verify all chargeable resources are destroyed
+        if: always()
+        run: |
+          echo "🔍 Verifying all chargeable resources are destroyed..."
+          echo ""
+          
+          # Check for running ECS tasks
+          echo "Checking ECS tasks..."
+          ECS_TASKS=$(aws ecs list-tasks --cluster attendancems-cluster --query 'taskArns' --output text 2>/dev/null || echo "")
+          if [ -n "$ECS_TASKS" ]; then
+            echo "  ⚠️  WARNING: Found running ECS tasks: $ECS_TASKS"
+          else
+            echo "  ✅ No ECS tasks running"
+          fi
+          
+          # Check for ALBs
+          echo "Checking Application Load Balancers..."
+          ALBS=$(aws elbv2 describe-load-balancers --query 'LoadBalancers[?contains(LoadBalancerName, `attendancems`)].LoadBalancerArn' --output text 2>/dev/null || echo "")
+          if [ -n "$ALBS" ]; then
+            echo "  ⚠️  WARNING: Found ALBs: $ALBS"
+          else
+            echo "  ✅ No ALBs found"
+          fi
+          
+          # Check for NAT Gateways
+          echo "Checking NAT Gateways..."
+          NAT_GWS=$(aws ec2 describe-nat-gateways --filter "Name=tag:Name,Values=*attendancems*" --query 'NatGateways[?State==`available`].NatGatewayId' --output text 2>/dev/null || echo "")
+          if [ -n "$NAT_GWS" ]; then
+            echo "  ⚠️  WARNING: Found NAT Gateways: $NAT_GWS"
+          else
+            echo "  ✅ No NAT Gateways found"
+          fi
+          
+          # Check for Elastic IPs
+          echo "Checking Elastic IPs..."
+          EIPS=$(aws ec2 describe-addresses --filters "Name=tag:Name,Values=*attendancems*" --query 'Addresses[*].AllocationId' --output text 2>/dev/null || echo "")
+          if [ -n "$EIPS" ]; then
+            echo "  ⚠️  WARNING: Found Elastic IPs: $EIPS"
+          else
+            echo "  ✅ No Elastic IPs found"
+          fi
+          
+          # Check for RDS instances
+          echo "Checking RDS instances..."
+          RDS_INSTANCES=$(aws rds describe-db-instances --query 'DBInstances[?DBInstanceIdentifier==`attendancems-db`].DBInstanceIdentifier' --output text 2>/dev/null || echo "")
+          if [ -n "$RDS_INSTANCES" ]; then
+            echo "  ⚠️  WARNING: Found RDS instances: $RDS_INSTANCES"
+          else
+            echo "  ✅ No RDS instances found"
+          fi
+          
+          # Check for VPCs
+          echo "Checking VPCs..."
+          VPCS=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=*attendancems*" --query 'Vpcs[*].VpcId' --output text 2>/dev/null || echo "")
+          if [ -n "$VPCS" ]; then
+            echo "  ⚠️  WARNING: Found VPCs: $VPCS"
+          else
+            echo "  ✅ No VPCs found"
+          fi
+          
+          echo ""
+          echo "✅ Resource verification complete"
 
       - name: Clean up Terraform state for fresh rebuild
         if: success()
