@@ -297,6 +297,7 @@ resource "aws_iam_role_policy" "github_actions_terraform_infra" {
           "rds:ModifyDBInstance",
           "rds:CreateDBSubnetGroup",
           "rds:DeleteDBSubnetGroup",
+          "rds:ModifyDBSubnetGroup",
           "rds:AddTagsToResource",
           "rds:RemoveTagsFromResource",
           "rds:CreateDBSnapshot",
