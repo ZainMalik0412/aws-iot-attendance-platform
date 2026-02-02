@@ -66,7 +66,47 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init
 
-      - name: Pre-destroy - Delete NAT Gateways and EIPs (speeds up VPC destroy)
+      - name: Save RDS snapshot before deletion
+        run: |
+          echo "📸 Saving RDS snapshot before deletion..."
+          
+          # Check if RDS instance exists
+          RDS_EXISTS=$(aws rds describe-db-instances \
+            --db-instance-identifier attendancems-db \
+            --query 'DBInstances[0].DBInstanceIdentifier' \
+            --output text 2>/dev/null || echo "")
+          
+          if [ -n "$RDS_EXISTS" ] && [ "$RDS_EXISTS" != "None" ]; then
+            # Create a new snapshot with timestamp
+            SNAPSHOT_ID="attendancems-final-$(date +%Y%m%d-%H%M%S)"
+            echo "  Creating snapshot: $SNAPSHOT_ID"
+            aws rds create-db-snapshot \
+              --db-instance-identifier attendancems-db \
+              --db-snapshot-identifier "$SNAPSHOT_ID" 2>/dev/null || true
+            
+            # Save snapshot ID to SSM
+            aws ssm put-parameter \
+              --name "/attendancems/latest-db-snapshot" \
+              --value "$SNAPSHOT_ID" \
+              --type String \
+              --overwrite 2>/dev/null || true
+            echo "✅ Snapshot $SNAPSHOT_ID saved to SSM"
+          else
+            echo "  No RDS instance found, checking for existing snapshots..."
+            LATEST=$(aws rds describe-db-snapshots \
+              --query "DBSnapshots[?contains(DBSnapshotIdentifier, 'attendancems')] | sort_by(@, &SnapshotCreateTime) | [-1].DBSnapshotIdentifier" \
+              --output text 2>/dev/null || echo "")
+            if [ -n "$LATEST" ] && [ "$LATEST" != "None" ]; then
+              aws ssm put-parameter \
+                --name "/attendancems/latest-db-snapshot" \
+                --value "$LATEST" \
+                --type String \
+                --overwrite 2>/dev/null || true
+              echo "✅ Using existing snapshot: $LATEST"
+            fi
+          fi
+
+      - name: Pre-destroy - Delete slow resources (speeds up terraform destroy)
         run: |
           echo "🚀 Pre-destroying NAT Gateways and EIPs to speed up VPC deletion..."
           
@@ -127,48 +167,15 @@ jobs:
             aws elbv2 delete-target-group --target-group-arn "$tg" 2>/dev/null || true
           done
           
-          echo "✅ Pre-destroy cleanup complete"
-
-      - name: Save latest RDS snapshot and clean up old ones
-        run: |
-          echo "📸 Finding and preserving latest RDS snapshot..."
-          
-          # Get all manual snapshots for our DB, sorted by creation time
-          SNAPSHOTS=$(aws rds describe-db-snapshots \
-            --query 'DBSnapshots[?DBInstanceIdentifier==`attendancems-db` && SnapshotType==`manual`].DBSnapshotIdentifier' \
-            --output text 2>/dev/null || echo "")
-          
-          LATEST_SNAPSHOT=$(aws rds describe-db-snapshots \
+          # Delete RDS instance with skip-final-snapshot (we already saved a snapshot earlier)
+          echo "  Deleting RDS instance (skip-final-snapshot)..."
+          aws rds delete-db-instance \
             --db-instance-identifier attendancems-db \
-            --snapshot-type manual \
-            --query 'DBSnapshots | sort_by(@, &SnapshotCreateTime) | [-1].DBSnapshotIdentifier' \
-            --output text 2>/dev/null || echo "none")
+            --skip-final-snapshot \
+            --delete-automated-backups \
+            2>/dev/null || echo "  RDS instance may not exist or already deleted"
           
-          if [ "$LATEST_SNAPSHOT" != "none" ] && [ "$LATEST_SNAPSHOT" != "None" ] && [ -n "$LATEST_SNAPSHOT" ]; then
-            echo "📸 Latest snapshot to preserve: $LATEST_SNAPSHOT"
-            
-            # Store in SSM for rebuild
-            aws ssm put-parameter \
-              --name "/attendancems/latest-db-snapshot" \
-              --value "$LATEST_SNAPSHOT" \
-              --type String \
-              --overwrite || true
-            echo "✅ Snapshot identifier saved to SSM"
-            
-            # Delete ALL OTHER manual snapshots to save storage costs
-            echo "🗑️ Cleaning up old manual snapshots..."
-            for snap in $SNAPSHOTS; do
-              if [ "$snap" != "$LATEST_SNAPSHOT" ]; then
-                echo "  Deleting old snapshot: $snap"
-                aws rds delete-db-snapshot --db-snapshot-identifier "$snap" 2>/dev/null || true
-              fi
-            done
-          else
-            echo "No manual snapshots found"
-          fi
-          
-          # Also clean up automated snapshots after RDS is deleted (they'll be orphaned)
-          echo "Note: Automated backups will be deleted when RDS instance is destroyed"
+          echo "✅ Pre-destroy cleanup complete"
 
       - name: Terraform Destroy
         working-directory: ${{ env.TF_WORKING_DIR }}
