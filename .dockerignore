@@ -1,22 +1,52 @@
+# ============================================================================
+# .dockerignore
+# Files and directories excluded from the Docker build context
+# This speeds up builds and prevents sensitive/unnecessary files from being
+# copied into the Docker image
+# ============================================================================
+
+# ---- Python artifacts ----
+# Compiled Python bytecode files (regenerated at runtime)
 **/__pycache__
+# Compiled Python files (not needed in the image)
 **/*.pyc
+# Optimised bytecode files
 **/*.pyo
+# Python DLL/shared library files (platform-specific)
 **/*.pyd
+# Pytest cache directory (test artifacts, not needed in production)
 **/.pytest_cache
+# Ruff linter cache (development tool artifact)
 **/.ruff_cache
+# MyPy type checker cache (development tool artifact)
 **/.mypy_cache
+# Python virtual environment (dependencies installed via pip in Dockerfile)
 **/.venv
+# Environment variable files (secrets - must NOT be in the image)
 **/.env
+# Environment variant files (.env.local, .env.production, etc.)
 **/.env.*
 
+# ---- Node.js artifacts ----
+# Node dependencies directory (installed fresh via npm ci in Dockerfile)
 **/node_modules
+# Built frontend assets (rebuilt in the frontend-builder stage)
 **/dist
+# Vite dev server cache (development-only artifact)
 **/.vite
 
+# ---- Terraform files ----
+# Terraform provider plugins and modules (not needed in app container)
 **/.terraform
+# Terraform state files (contain sensitive infrastructure details)
 **/*.tfstate
+# Terraform state backup files
 **/*.tfstate.*
 
+# ---- Version control and CI ----
+# Git history (not needed in the image, saves significant space)
 .git
+# GitHub Actions workflows (CI/CD config, not part of the application)
 .github
+# Documentation file (not needed in the running container)
 README.md

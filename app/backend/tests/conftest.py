@@ -1,4 +1,4 @@
-"""Pytest fixtures for testing."""
+# Pytest fixtures for testing.
 
 import os
 
@@ -19,7 +19,7 @@ from app.models import User, Role, Module, Session as AttendanceSession, Session
 
 @pytest.fixture(scope="function")
 def test_db():
-    """Create an in-memory SQLite database for testing."""
+    # Create an in-memory SQLite database for testing.
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -38,7 +38,7 @@ def test_db():
 
 @pytest.fixture(scope="function")
 def client(test_db):
-    """Create a test client with database override."""
+    # Create a test client with database override.
     def override_get_db():
         try:
             yield test_db
@@ -53,7 +53,7 @@ def client(test_db):
 
 @pytest.fixture
 def admin_user(test_db):
-    """Create an admin user for testing."""
+    # Create an admin user for testing.
     user = User(
         username="admin",
         email="admin@test.com",
@@ -69,7 +69,7 @@ def admin_user(test_db):
 
 @pytest.fixture
 def lecturer_user(test_db):
-    """Create a lecturer user for testing."""
+    # Create a lecturer user for testing.
     user = User(
         username="lecturer",
         email="lecturer@test.com",
@@ -85,7 +85,7 @@ def lecturer_user(test_db):
 
 @pytest.fixture
 def student_user(test_db):
-    """Create a student user for testing."""
+    # Create a student user for testing.
     user = User(
         username="student",
         email="student@test.com",
@@ -101,7 +101,7 @@ def student_user(test_db):
 
 @pytest.fixture
 def test_module(test_db, lecturer_user):
-    """Create a test module."""
+    # Create a test module.
     module = Module(
         code="CS101",
         name="Test Module",
@@ -116,7 +116,7 @@ def test_module(test_db, lecturer_user):
 
 @pytest.fixture
 def admin_token(client, admin_user):
-    """Get an auth token for admin user."""
+    # Get an auth token for admin user.
     response = client.post(
         "/api/auth/login",
         data={"username": "admin", "password": "admin123"},
@@ -126,7 +126,7 @@ def admin_token(client, admin_user):
 
 @pytest.fixture
 def lecturer_token(client, lecturer_user):
-    """Get an auth token for lecturer user."""
+    # Get an auth token for lecturer user.
     response = client.post(
         "/api/auth/login",
         data={"username": "lecturer", "password": "lecturer123"},
@@ -136,7 +136,7 @@ def lecturer_token(client, lecturer_user):
 
 @pytest.fixture
 def student_token(client, student_user):
-    """Get an auth token for student user."""
+    # Get an auth token for student user.
     response = client.post(
         "/api/auth/login",
         data={"username": "student", "password": "student123"},

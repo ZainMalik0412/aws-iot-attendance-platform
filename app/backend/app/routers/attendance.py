@@ -1,4 +1,4 @@
-"""Attendance management endpoints."""
+# Attendance management endpoints.
 
 from datetime import datetime
 from typing import List, Optional
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/attendance", tags=["attendance"])
 
 @router.get("/session/{session_id}", response_model=List[AttendanceDetail])
 def list_session_attendance(session_id: int, db: DBSession, current_user: CurrentUser):
-    """List all attendance records for a session."""
+    # List all attendance records for a session.
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -59,7 +59,7 @@ def list_student_attendance(
     current_user: CurrentUser,
     module_id: Optional[int] = Query(None),
 ):
-    """List attendance records for a specific student."""
+    # List attendance records for a specific student.
     # Students can only view their own attendance
     if current_user.role == Role.STUDENT and current_user.id != student_id:
         raise HTTPException(status_code=403, detail="Cannot view other student's attendance")
@@ -72,7 +72,7 @@ def list_student_attendance(
 
 @router.get("/my", response_model=List[AttendanceOut])
 def get_my_attendance(db: DBSession, current_user: CurrentUser):
-    """Get current user's attendance records (for students)."""
+    # Get current user's attendance records (for students).
     if current_user.role != Role.STUDENT:
         raise HTTPException(status_code=400, detail="Only students have attendance records")
     attendances = db.query(Attendance).filter(Attendance.student_id == current_user.id).all()
@@ -86,7 +86,7 @@ def update_attendance(
     db: DBSession,
     current_user: RequireLecturer,
 ):
-    """Manually update an attendance record (Lecturer/Admin only)."""
+    # Manually update an attendance record (Lecturer/Admin only).
     attendance = db.query(Attendance).filter(Attendance.id == attendance_id).first()
     if not attendance:
         raise HTTPException(status_code=404, detail="Attendance record not found")
@@ -113,7 +113,7 @@ def mark_attendance_manual(
     db: DBSession,
     current_user: RequireLecturer,
 ):
-    """Manually mark a student's attendance for a session."""
+    # Manually mark a student's attendance for a session.
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")

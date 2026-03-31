@@ -1,4 +1,4 @@
-"""Tests for student statistics endpoint (FR11)."""
+# Tests for student statistics endpoint (FR11).
 
 import pytest
 from datetime import datetime, timedelta
@@ -8,7 +8,7 @@ from app.models import Attendance, AttendanceStatus, Module, Role, Session, Sess
 
 @pytest.fixture
 def student_with_modules(test_db):
-    """Create a student enrolled in multiple modules with attendance history."""
+    # Create a student enrolled in multiple modules with attendance history.
     # Create student
     student = User(
         username="stats_student",
@@ -95,7 +95,7 @@ def student_with_modules(test_db):
 
 @pytest.fixture
 def stats_student_token(client, student_with_modules):
-    """Get auth token for stats student."""
+    # Get auth token for stats student.
     from app.auth import hash_password
     student_with_modules.hashed_password = hash_password("testpass")
     response = client.post(
@@ -106,10 +106,10 @@ def stats_student_token(client, student_with_modules):
 
 
 class TestStudentStatistics:
-    """Tests for GET /dashboard/student-stats endpoint."""
+    # Tests for GET /dashboard/student-stats endpoint.
 
     def test_get_student_stats(self, client, stats_student_token):
-        """Student can get their attendance statistics."""
+        # Student can get their attendance statistics.
         response = client.get(
             "/api/dashboard/student-stats",
             headers={"Authorization": f"Bearer {stats_student_token}"},
@@ -129,7 +129,7 @@ class TestStudentStatistics:
         assert len(data["modules"]) == 2
 
     def test_lecturer_cannot_access_student_stats(self, client, lecturer_token):
-        """Lecturers cannot access student statistics endpoint."""
+        # Lecturers cannot access student statistics endpoint.
         response = client.get(
             "/api/dashboard/student-stats",
             headers={"Authorization": f"Bearer {lecturer_token}"},
@@ -137,7 +137,7 @@ class TestStudentStatistics:
         assert response.status_code == 403
 
     def test_admin_cannot_access_student_stats(self, client, admin_token):
-        """Admins cannot access student statistics endpoint."""
+        # Admins cannot access student statistics endpoint.
         response = client.get(
             "/api/dashboard/student-stats",
             headers={"Authorization": f"Bearer {admin_token}"},
@@ -145,7 +145,7 @@ class TestStudentStatistics:
         assert response.status_code == 403
 
     def test_student_with_no_modules(self, client, student_token):
-        """Student with no enrolled modules gets empty stats."""
+        # Student with no enrolled modules gets empty stats.
         response = client.get(
             "/api/dashboard/student-stats",
             headers={"Authorization": f"Bearer {student_token}"},

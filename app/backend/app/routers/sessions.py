@@ -1,4 +1,4 @@
-"""Session management endpoints."""
+# Session management endpoints.
 
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -28,7 +28,7 @@ def list_sessions(
     skip: int = 0,
     limit: int = 100,
 ):
-    """List sessions. Filtered by user role and optionally by module or status."""
+    # List sessions. Filtered by user role and optionally by module or status.
     query = db.query(Session)
     if current_user.role == Role.STUDENT:
         # Students see sessions for modules they're enrolled in
@@ -48,7 +48,7 @@ def list_sessions(
 
 @router.post("", response_model=SessionOut, status_code=status.HTTP_201_CREATED)
 def create_session(payload: SessionCreate, db: DBSession, current_user: RequireLecturer):
-    """Create a new session for a module."""
+    # Create a new session for a module.
     module = db.query(Module).filter(Module.id == payload.module_id).first()
     if not module:
         raise HTTPException(status_code=404, detail="Module not found")
@@ -71,7 +71,7 @@ def create_session(payload: SessionCreate, db: DBSession, current_user: RequireL
 
 @router.get("/{session_id}", response_model=SessionDetail)
 def get_session(session_id: int, db: DBSession, current_user: CurrentUser):
-    """Get session details."""
+    # Get session details.
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -106,7 +106,7 @@ def get_session(session_id: int, db: DBSession, current_user: CurrentUser):
 
 @router.patch("/{session_id}", response_model=SessionOut)
 def update_session(session_id: int, payload: SessionUpdate, db: DBSession, current_user: RequireLecturer):
-    """Update a session."""
+    # Update a session.
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -127,7 +127,7 @@ def update_session(session_id: int, payload: SessionUpdate, db: DBSession, curre
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_session(session_id: int, db: DBSession, current_user: RequireLecturer):
-    """Delete a session."""
+    # Delete a session.
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -139,7 +139,7 @@ def delete_session(session_id: int, db: DBSession, current_user: RequireLecturer
 
 @router.post("/{session_id}/start", response_model=SessionOut)
 def start_session(session_id: int, db: DBSession, current_user: RequireLecturer):
-    """Start a session and create attendance records for enrolled students."""
+    # Start a session and create attendance records for enrolled students.
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -169,7 +169,7 @@ def start_session(session_id: int, db: DBSession, current_user: RequireLecturer)
 
 @router.post("/{session_id}/pause", response_model=SessionOut)
 def pause_session(session_id: int, db: DBSession, current_user: RequireLecturer):
-    """Pause an active session."""
+    # Pause an active session.
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -185,7 +185,7 @@ def pause_session(session_id: int, db: DBSession, current_user: RequireLecturer)
 
 @router.post("/{session_id}/resume", response_model=SessionOut)
 def resume_session(session_id: int, db: DBSession, current_user: RequireLecturer):
-    """Resume a paused session."""
+    # Resume a paused session.
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -201,7 +201,7 @@ def resume_session(session_id: int, db: DBSession, current_user: RequireLecturer
 
 @router.post("/{session_id}/end", response_model=SessionOut)
 def end_session(session_id: int, db: DBSession, current_user: RequireLecturer):
-    """End a session."""
+    # End a session.
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -216,13 +216,11 @@ def end_session(session_id: int, db: DBSession, current_user: RequireLecturer):
     return SessionOut.model_validate(session)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Live Recognition Endpoints (FR6-FR8)
-# ─────────────────────────────────────────────────────────────────────────────
 
 @router.get("/{session_id}/live-state", response_model=LiveSessionState)
 def get_live_session_state(session_id: int, db: DBSession, current_user: RequireLecturer):
-    """Get the current state of a live session for the live attendance UI."""
+    # Get the current state of a live session for the live attendance UI.
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -259,7 +257,7 @@ def get_live_session_state(session_id: int, db: DBSession, current_user: Require
 
 @router.get("/{session_id}/live-attendance", response_model=LiveAttendanceList)
 def get_live_attendance(session_id: int, db: DBSession, current_user: RequireLecturer):
-    """Get the live attendance list for a session."""
+    # Get the live attendance list for a session.
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -294,16 +292,14 @@ def recognize_frame(
     db: DBSession,
     current_user: RequireLecturer,
 ):
-    """
-    Process a camera frame and recognize faces against enrolled students.
-    
-    This endpoint:
-    1. Validates the session is active (not paused or ended)
-    2. Extracts faces from the frame
-    3. Matches each face against enrolled students' face templates
-    4. Marks attendance for matched students (with cooldown to prevent duplicates)
-    5. Returns list of recognized students
-    """
+    # Process a camera frame and recognize faces against enrolled students.
+    #
+    # This endpoint:
+    # 1. Validates the session is active (not paused or ended)
+    # 2. Extracts faces from the frame
+    # 3. Matches each face against enrolled students' face templates
+    # 4. Marks attendance for matched students (with cooldown to prevent duplicates)
+    # 5. Returns list of recognized students
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -367,6 +363,11 @@ def recognize_frame(
     # face_encodings now contains (encoding, face_location) tuples
     for face_encoding, face_location in face_encodings:
         match = match_face_to_students(face_encoding, student_encoding_data)
+        
+        # Create face bounding box from location (top, right, bottom, left)
+        top, right, bottom, left = face_location
+        face_box = FaceBox(top=top, right=right, bottom=bottom, left=left)
+        
         if match:
             student_id, student_name, confidence = match
             username = student_lookup.get(student_id, (student_name, "unknown"))[1]
@@ -399,10 +400,6 @@ def recognize_frame(
                 )
                 db.add(attendance)
             
-            # Create face bounding box from location (top, right, bottom, left)
-            top, right, bottom, left = face_location
-            face_box = FaceBox(top=top, right=right, bottom=bottom, left=left)
-            
             recognized.append(RecognizedStudent(
                 student_id=student_id,
                 student_name=student_name,
@@ -411,6 +408,13 @@ def recognize_frame(
                 status=attendance.status,
                 already_marked=already_marked,
                 face_box=face_box,
+            ))
+        else:
+            # Unmatched face — include in response so frontend can draw a red box
+            recognized.append(RecognizedStudent(
+                confidence=0.0,
+                face_box=face_box,
+                is_unknown=True,
             ))
     
     db.commit()

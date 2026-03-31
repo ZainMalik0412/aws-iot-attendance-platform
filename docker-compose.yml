@@ -7,6 +7,8 @@ services:
       POSTGRES_PASSWORD: attendancems
     ports:
       - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U attendancems -d attendancems"]
       interval: 5s
@@ -23,8 +25,18 @@ services:
       JWT_ACCESS_TOKEN_EXPIRES_MINUTES: "1440"
       SEED_DEMO_DATA: "true"
       APP_ENV: local
+      FACE_RECOGNITION_TOLERANCE: "0.4"
     ports:
-      - "8000:8080"
+      - "8001:8080"
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  pgdata:

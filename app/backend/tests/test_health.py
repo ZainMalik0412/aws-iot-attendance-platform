@@ -1,10 +1,10 @@
-"""Tests for health check endpoint."""
+# Tests for health check endpoint.
 
 import pytest
 
 
 def test_health_check(client):
-    """Test health check endpoint returns 200."""
+    # Test health check endpoint returns 200.
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()

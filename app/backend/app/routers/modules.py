@@ -1,4 +1,4 @@
-"""Module management endpoints."""
+# Module management endpoints.
 
 from typing import List
 
@@ -18,7 +18,7 @@ def list_modules(
     skip: int = 0,
     limit: int = 100,
 ):
-    """List modules. Students see enrolled modules; lecturers see taught modules; admins see all."""
+    # List modules. Students see enrolled modules; lecturers see taught modules; admins see all.
     query = db.query(Module)
     if current_user.role == Role.STUDENT:
         query = query.filter(Module.enrolled_students.any(User.id == current_user.id))
@@ -30,7 +30,7 @@ def list_modules(
 
 @router.post("", response_model=ModuleOut, status_code=status.HTTP_201_CREATED)
 def create_module(payload: ModuleCreate, db: DBSession, _: RequireAdmin):
-    """Create a new module (Admin only)."""
+    # Create a new module (Admin only).
     if db.query(Module).filter(Module.code == payload.code).first():
         raise HTTPException(status_code=400, detail="Module code already exists")
     if payload.lecturer_id:
@@ -51,7 +51,7 @@ def create_module(payload: ModuleCreate, db: DBSession, _: RequireAdmin):
 
 @router.get("/{module_id}", response_model=ModuleDetail)
 def get_module(module_id: int, db: DBSession, current_user: CurrentUser):
-    """Get module details."""
+    # Get module details.
     module = db.query(Module).filter(Module.id == module_id).first()
     if not module:
         raise HTTPException(status_code=404, detail="Module not found")
@@ -88,7 +88,7 @@ def get_module(module_id: int, db: DBSession, current_user: CurrentUser):
 
 @router.patch("/{module_id}", response_model=ModuleOut)
 def update_module(module_id: int, payload: ModuleUpdate, db: DBSession, _: RequireAdmin):
-    """Update a module (Admin only)."""
+    # Update a module (Admin only).
     module = db.query(Module).filter(Module.id == module_id).first()
     if not module:
         raise HTTPException(status_code=404, detail="Module not found")
@@ -116,7 +116,7 @@ def update_module(module_id: int, payload: ModuleUpdate, db: DBSession, _: Requi
 
 @router.delete("/{module_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_module(module_id: int, db: DBSession, _: RequireAdmin):
-    """Delete a module (Admin only)."""
+    # Delete a module (Admin only).
     module = db.query(Module).filter(Module.id == module_id).first()
     if not module:
         raise HTTPException(status_code=404, detail="Module not found")
@@ -126,7 +126,7 @@ def delete_module(module_id: int, db: DBSession, _: RequireAdmin):
 
 @router.get("/{module_id}/students", response_model=List[UserOut])
 def list_module_students(module_id: int, db: DBSession, current_user: RequireLecturer):
-    """List students enrolled in a module."""
+    # List students enrolled in a module.
     module = db.query(Module).filter(Module.id == module_id).first()
     if not module:
         raise HTTPException(status_code=404, detail="Module not found")

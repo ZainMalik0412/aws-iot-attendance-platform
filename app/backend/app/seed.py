@@ -1,4 +1,4 @@
-"""Seed database with demo data."""
+# Seed database with demo data.
 
 import logging
 from datetime import datetime, timedelta
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def seed_demo_data(db: Session) -> None:
-    """Seed the database with demo users, modules, and sessions."""
+    # Seed the database with demo users, modules, and sessions.
     
     # Check if already seeded
     if db.query(User).filter(User.username == "admin").first():

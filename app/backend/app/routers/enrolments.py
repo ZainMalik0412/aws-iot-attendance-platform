@@ -1,4 +1,4 @@
-"""Enrolment management endpoints (Admin only)."""
+# Enrolment management endpoints (Admin only).
 
 from fastapi import APIRouter, HTTPException, status
 
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/enrolments", tags=["enrolments"])
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def enrol_student(payload: EnrolmentCreate, db: DBSession, _: RequireAdmin):
-    """Enrol a student in a module."""
+    # Enrol a student in a module.
     student = db.query(User).filter(User.id == payload.student_id, User.role == Role.STUDENT).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -27,7 +27,7 @@ def enrol_student(payload: EnrolmentCreate, db: DBSession, _: RequireAdmin):
 
 @router.post("/bulk", status_code=status.HTTP_201_CREATED)
 def enrol_students_bulk(payload: EnrolmentBulk, db: DBSession, _: RequireAdmin):
-    """Enrol multiple students in a module."""
+    # Enrol multiple students in a module.
     module = db.query(Module).filter(Module.id == payload.module_id).first()
     if not module:
         raise HTTPException(status_code=404, detail="Module not found")
@@ -43,7 +43,7 @@ def enrol_students_bulk(payload: EnrolmentBulk, db: DBSession, _: RequireAdmin):
 
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)
 def unenrol_student(student_id: int, module_id: int, db: DBSession, _: RequireAdmin):
-    """Remove a student from a module."""
+    # Remove a student from a module.
     student = db.query(User).filter(User.id == student_id).first()
     module = db.query(Module).filter(Module.id == module_id).first()
     if not student or not module:

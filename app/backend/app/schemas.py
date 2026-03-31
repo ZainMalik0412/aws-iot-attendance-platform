@@ -1,4 +1,4 @@
-"""Pydantic schemas for request/response validation."""
+# Pydantic schemas for request/response validation.
 
 from datetime import datetime
 from typing import List, Optional
@@ -8,9 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.models import AttendanceStatus, Role, SessionStatus
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Auth
-# ─────────────────────────────────────────────────────────────────────────────
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -27,9 +25,7 @@ class LoginRequest(BaseModel):
     password: str
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # User
-# ─────────────────────────────────────────────────────────────────────────────
 class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=100)
     email: Optional[str] = None
@@ -62,9 +58,7 @@ class UserMe(UserOut):
     taught_module_ids: List[int] = []
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Module
-# ─────────────────────────────────────────────────────────────────────────────
 class ModuleBase(BaseModel):
     code: str = Field(..., min_length=2, max_length=20)
     name: str = Field(..., min_length=1, max_length=255)
@@ -95,9 +89,7 @@ class ModuleDetail(ModuleOut):
     enrolled_student_count: int = 0
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Enrolment
-# ─────────────────────────────────────────────────────────────────────────────
 class EnrolmentCreate(BaseModel):
     student_id: int
     module_id: int
@@ -108,9 +100,7 @@ class EnrolmentBulk(BaseModel):
     module_id: int
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Session
-# ─────────────────────────────────────────────────────────────────────────────
 class SessionBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     scheduled_start: datetime
@@ -146,9 +136,7 @@ class SessionDetail(SessionOut):
     present_count: int = 0
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Attendance
-# ─────────────────────────────────────────────────────────────────────────────
 class AttendanceBase(BaseModel):
     status: AttendanceStatus = AttendanceStatus.ABSENT
     notes: Optional[str] = None
@@ -178,9 +166,7 @@ class AttendanceDetail(AttendanceOut):
     student: Optional[UserOut] = None
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Face Registration
-# ─────────────────────────────────────────────────────────────────────────────
 class FaceRegisterRequest(BaseModel):
     image_base64: str
 
@@ -204,9 +190,7 @@ class FaceVerifyResponse(BaseModel):
     message: str
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Dashboard / Reports
-# ─────────────────────────────────────────────────────────────────────────────
 class DashboardStats(BaseModel):
     total_students: int
     total_lecturers: int
@@ -229,15 +213,13 @@ class AttendanceReportRow(BaseModel):
     marked_at: Optional[datetime]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Live Recognition (FR6-FR8)
-# ─────────────────────────────────────────────────────────────────────────────
 class LiveRecognitionRequest(BaseModel):
     image_base64: str
 
 
 class FaceBox(BaseModel):
-    """Bounding box coordinates for a detected face."""
+    # Bounding box coordinates for a detected face.
     top: int
     right: int
     bottom: int
@@ -245,13 +227,14 @@ class FaceBox(BaseModel):
 
 
 class RecognizedStudent(BaseModel):
-    student_id: int
-    student_name: str
-    username: str
+    student_id: Optional[int] = None
+    student_name: Optional[str] = None
+    username: Optional[str] = None
     confidence: float
-    status: AttendanceStatus
-    already_marked: bool
+    status: Optional[str] = None
+    already_marked: bool = False
     face_box: Optional[FaceBox] = None
+    is_unknown: bool = False
 
 
 class LiveRecognitionResponse(BaseModel):
@@ -289,9 +272,7 @@ class LiveAttendanceList(BaseModel):
     students: List[LiveAttendanceStudent]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Student Statistics (FR11)
-# ─────────────────────────────────────────────────────────────────────────────
 class ModuleAttendanceStats(BaseModel):
     module_id: int
     module_code: str

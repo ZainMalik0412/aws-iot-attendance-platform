@@ -1,11 +1,11 @@
-"""Tests for session management endpoints."""
+# Tests for session management endpoints.
 
 import pytest
 from datetime import datetime, timedelta
 
 
 def test_create_session(client, lecturer_token, test_module):
-    """Test creating a session."""
+    # Test creating a session.
     start = datetime.utcnow() + timedelta(hours=1)
     end = start + timedelta(hours=2)
     
@@ -27,7 +27,7 @@ def test_create_session(client, lecturer_token, test_module):
 
 
 def test_start_session(client, lecturer_token, test_module, test_db):
-    """Test starting a session."""
+    # Test starting a session.
     from app.models import Session, SessionStatus
     
     start = datetime.utcnow()
@@ -54,7 +54,7 @@ def test_start_session(client, lecturer_token, test_module, test_db):
 
 
 def test_pause_session(client, lecturer_token, test_module, test_db):
-    """Test pausing a session."""
+    # Test pausing a session.
     from app.models import Session, SessionStatus
     
     start = datetime.utcnow()
@@ -82,7 +82,7 @@ def test_pause_session(client, lecturer_token, test_module, test_db):
 
 
 def test_end_session(client, lecturer_token, test_module, test_db):
-    """Test ending a session."""
+    # Test ending a session.
     from app.models import Session, SessionStatus
     
     start = datetime.utcnow()
@@ -110,7 +110,7 @@ def test_end_session(client, lecturer_token, test_module, test_db):
 
 
 def test_student_cannot_start_session(client, student_token, test_module, test_db):
-    """Test that students cannot start sessions."""
+    # Test that students cannot start sessions.
     from app.models import Session, SessionStatus
     
     start = datetime.utcnow()

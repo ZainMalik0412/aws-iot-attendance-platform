@@ -230,12 +230,38 @@ jobs:
           
           # Delete ECR images
           aws ecr batch-delete-image \
-            --repository-name attendancems-app \
-            --image-ids "$(aws ecr list-images --repository-name attendancems-app --query 'imageIds[*]' --output json 2>/dev/null || echo '[]')" \
+            --repository-name attendancems \
+            --image-ids "$(aws ecr list-images --repository-name attendancems --query 'imageIds[*]' --output json 2>/dev/null || echo '[]')" \
             2>/dev/null || true
           
           # Delete CloudWatch log groups
           aws logs delete-log-group --log-group-name /ecs/attendancems 2>/dev/null || true
+          
+          # Deregister all ECS task definition revisions (not removed by terraform destroy)
+          echo "  Cleaning up ECS task definitions..."
+          aws ecs list-task-definitions --family-prefix attendancems-service \
+            --query 'taskDefinitionArns[]' --output text 2>/dev/null | tr '\t' '\n' | \
+            while read td; do
+              if [ -n "$td" ]; then
+                aws ecs deregister-task-definition --task-definition "$td" >/dev/null 2>&1 || true
+              fi
+            done
+          # Delete inactive task definitions in batches of 10 (API limit)
+          # Use sed to extract short-form identifiers (family:revision) from full ARNs
+          aws ecs list-task-definitions --family-prefix attendancems-service --status INACTIVE \
+            --query 'taskDefinitionArns[]' --output text 2>/dev/null | tr '\t' '\n' | \
+            sed 's|.*/||' | xargs -n 10 bash -c \
+            'if [ $# -gt 0 ]; then aws ecs delete-task-definitions --task-definitions "$@" >/dev/null 2>&1 || true; fi' _
+          
+          # Delete orphaned ACM certificates for our domain
+          echo "  Cleaning up ACM certificates..."
+          aws acm list-certificates \
+            --query "CertificateSummaryList[?contains(DomainName,'zainecs')].CertificateArn" \
+            --output text 2>/dev/null | tr '\t' '\n' | while read arn; do
+              if [ -n "$arn" ]; then
+                aws acm delete-certificate --certificate-arn "$arn" 2>/dev/null || true
+              fi
+            done
           
           echo "✅ Resource cleanup complete"
 
@@ -247,11 +273,15 @@ jobs:
           PRESERVED=$(aws ssm get-parameter --name "/attendancems/latest-db-snapshot" \
             --query 'Parameter.Value' --output text 2>/dev/null || echo "")
           
+          # Only delete manual snapshots (skip automated ones with 'rds:' prefix - AWS manages those)
           aws rds describe-db-snapshots \
-            --query "DBSnapshots[?contains(DBSnapshotIdentifier, 'attendancems')].DBSnapshotIdentifier" \
+            --query "DBSnapshots[?contains(DBSnapshotIdentifier, 'attendancems') && SnapshotType=='manual'].DBSnapshotIdentifier" \
             --output text 2>/dev/null | tr '\t' '\n' | while read snap; do
               if [ -n "$snap" ] && [ "$snap" != "$PRESERVED" ]; then
+                echo "  Deleting old snapshot: $snap"
                 aws rds delete-db-snapshot --db-snapshot-identifier "$snap" 2>/dev/null || true
+              else
+                echo "  Keeping snapshot: $snap"
               fi
           done
           echo "✅ Snapshots cleaned (preserved: $PRESERVED)"

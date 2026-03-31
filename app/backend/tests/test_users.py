@@ -1,10 +1,10 @@
-"""Tests for user management endpoints."""
+# Tests for user management endpoints.
 
 import pytest
 
 
 def test_list_users_as_admin(client, admin_token, student_user, lecturer_user):
-    """Test listing users as admin."""
+    # Test listing users as admin.
     response = client.get(
         "/api/users",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -15,7 +15,7 @@ def test_list_users_as_admin(client, admin_token, student_user, lecturer_user):
 
 
 def test_list_users_as_student_forbidden(client, student_token):
-    """Test that students cannot list users."""
+    # Test that students cannot list users.
     response = client.get(
         "/api/users",
         headers={"Authorization": f"Bearer {student_token}"},
@@ -24,7 +24,7 @@ def test_list_users_as_student_forbidden(client, student_token):
 
 
 def test_create_user(client, admin_token):
-    """Test creating a new user."""
+    # Test creating a new user.
     response = client.post(
         "/api/users",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -43,7 +43,7 @@ def test_create_user(client, admin_token):
 
 
 def test_create_user_duplicate_username(client, admin_token, student_user):
-    """Test creating user with duplicate username."""
+    # Test creating user with duplicate username.
     response = client.post(
         "/api/users",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -58,7 +58,7 @@ def test_create_user_duplicate_username(client, admin_token, student_user):
 
 
 def test_get_user(client, admin_token, student_user):
-    """Test getting a specific user."""
+    # Test getting a specific user.
     response = client.get(
         f"/api/users/{student_user.id}",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -70,7 +70,7 @@ def test_get_user(client, admin_token, student_user):
 
 
 def test_update_user(client, admin_token, student_user):
-    """Test updating a user."""
+    # Test updating a user.
     response = client.patch(
         f"/api/users/{student_user.id}",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -82,7 +82,7 @@ def test_update_user(client, admin_token, student_user):
 
 
 def test_delete_user(client, admin_token, test_db):
-    """Test deleting a user."""
+    # Test deleting a user.
     from app.models import User, Role
     from app.auth import hash_password
     

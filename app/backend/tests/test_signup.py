@@ -1,4 +1,4 @@
-"""Tests for user signup functionality."""
+# Tests for user signup functionality.
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,10 +7,10 @@ from app.models import User, Role
 
 
 class TestSignup:
-    """Test cases for the signup endpoint."""
+    # Test cases for the signup endpoint.
 
     def test_signup_success(self, client: TestClient, test_db):
-        """Test successful user registration."""
+        # Test successful user registration.
         response = client.post(
             "/api/auth/signup",
             json={
@@ -32,7 +32,7 @@ class TestSignup:
         assert "created_at" in data
 
     def test_signup_without_email(self, client: TestClient, test_db):
-        """Test signup without providing email (optional field)."""
+        # Test signup without providing email (optional field).
         response = client.post(
             "/api/auth/signup",
             json={
@@ -48,7 +48,7 @@ class TestSignup:
         assert data["role"] == "student"
 
     def test_signup_duplicate_username(self, client: TestClient, test_db):
-        """Test signup with duplicate username fails."""
+        # Test signup with duplicate username fails.
         # First signup
         client.post(
             "/api/auth/signup",
@@ -71,7 +71,7 @@ class TestSignup:
         assert response.json()["detail"] == "Username already exists"
 
     def test_signup_duplicate_email(self, client: TestClient, test_db):
-        """Test signup with duplicate email fails."""
+        # Test signup with duplicate email fails.
         # First signup
         client.post(
             "/api/auth/signup",
@@ -96,7 +96,7 @@ class TestSignup:
         assert response.json()["detail"] == "Email already exists"
 
     def test_signup_short_username(self, client: TestClient, test_db):
-        """Test signup with too short username fails validation."""
+        # Test signup with too short username fails validation.
         response = client.post(
             "/api/auth/signup",
             json={
@@ -108,7 +108,7 @@ class TestSignup:
         assert response.status_code == 422
 
     def test_signup_short_password(self, client: TestClient, test_db):
-        """Test signup with too short password fails validation."""
+        # Test signup with too short password fails validation.
         response = client.post(
             "/api/auth/signup",
             json={
@@ -120,7 +120,7 @@ class TestSignup:
         assert response.status_code == 422
 
     def test_signup_empty_full_name(self, client: TestClient, test_db):
-        """Test signup with empty full name fails validation."""
+        # Test signup with empty full name fails validation.
         response = client.post(
             "/api/auth/signup",
             json={
@@ -132,7 +132,7 @@ class TestSignup:
         assert response.status_code == 422
 
     def test_signup_then_login(self, client: TestClient, test_db):
-        """Test that a user can login after signing up."""
+        # Test that a user can login after signing up.
         # Signup
         signup_response = client.post(
             "/api/auth/signup",
@@ -153,7 +153,7 @@ class TestSignup:
         assert "access_token" in login_response.json()
 
     def test_signup_user_is_student_by_default(self, client: TestClient, test_db):
-        """Test that new signups are always students regardless of role in request."""
+        # Test that new signups are always students regardless of role in request.
         response = client.post(
             "/api/auth/signup",
             json={
@@ -168,7 +168,7 @@ class TestSignup:
         assert data["role"] == "student"
 
     def test_signup_creates_user_in_database(self, client: TestClient, test_db):
-        """Test that signup actually creates a user in the database."""
+        # Test that signup actually creates a user in the database.
         response = client.post(
             "/api/auth/signup",
             json={
@@ -186,7 +186,7 @@ class TestSignup:
         assert user.is_active is True
 
     def test_signup_password_is_hashed(self, client: TestClient, test_db):
-        """Test that the password is stored hashed, not in plaintext."""
+        # Test that the password is stored hashed, not in plaintext.
         response = client.post(
             "/api/auth/signup",
             json={

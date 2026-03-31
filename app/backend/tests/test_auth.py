@@ -1,10 +1,10 @@
-"""Tests for authentication endpoints."""
+# Tests for authentication endpoints.
 
 import pytest
 
 
 def test_login_success(client, admin_user):
-    """Test successful login."""
+    # Test successful login.
     response = client.post(
         "/api/auth/login",
         data={"username": "admin", "password": "admin123"},
@@ -16,7 +16,7 @@ def test_login_success(client, admin_user):
 
 
 def test_login_wrong_password(client, admin_user):
-    """Test login with wrong password."""
+    # Test login with wrong password.
     response = client.post(
         "/api/auth/login",
         data={"username": "admin", "password": "wrongpass"},
@@ -25,7 +25,7 @@ def test_login_wrong_password(client, admin_user):
 
 
 def test_login_nonexistent_user(client):
-    """Test login with nonexistent user."""
+    # Test login with nonexistent user.
     response = client.post(
         "/api/auth/login",
         data={"username": "nonexistent", "password": "password"},
@@ -34,7 +34,7 @@ def test_login_nonexistent_user(client):
 
 
 def test_get_me(client, admin_token):
-    """Test get current user endpoint."""
+    # Test get current user endpoint.
     response = client.get(
         "/api/auth/me",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -46,13 +46,13 @@ def test_get_me(client, admin_token):
 
 
 def test_get_me_no_token(client):
-    """Test get current user without token."""
+    # Test get current user without token.
     response = client.get("/api/auth/me")
     assert response.status_code == 401
 
 
 def test_get_me_invalid_token(client):
-    """Test get current user with invalid token."""
+    # Test get current user with invalid token.
     response = client.get(
         "/api/auth/me",
         headers={"Authorization": "Bearer invalid_token"},

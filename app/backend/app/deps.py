@@ -1,4 +1,4 @@
-"""FastAPI dependencies for authentication and authorization."""
+# FastAPI dependencies for authentication and authorization.
 
 from typing import Annotated, List
 
@@ -16,7 +16,7 @@ DBSession = Annotated[Session, Depends(get_db)]
 
 
 def get_current_user(db: DBSession, token: Annotated[str, Depends(oauth2_scheme)]) -> User:
-    """Extract and validate the current user from the JWT token."""
+    # Extract and validate the current user from the JWT token.
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -38,7 +38,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 def require_roles(allowed_roles: List[Role]):
-    """Dependency factory that restricts access to specific roles."""
+    # Dependency factory that restricts access to specific roles.
 
     def role_checker(current_user: CurrentUser) -> User:
         if current_user.role not in allowed_roles:

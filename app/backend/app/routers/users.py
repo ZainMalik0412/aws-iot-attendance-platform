@@ -1,4 +1,4 @@
-"""User management endpoints (Admin only)."""
+# User management endpoints (Admin only).
 
 import logging
 from typing import List, Optional
@@ -23,7 +23,7 @@ def list_users(
     skip: int = 0,
     limit: int = 100,
 ):
-    """List all users, optionally filtered by role."""
+    # List all users, optionally filtered by role.
     query = db.query(User)
     if role:
         query = query.filter(User.role == role)
@@ -45,7 +45,7 @@ def list_users(
 
 @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def create_user(payload: UserCreate, db: DBSession, _: RequireAdmin):
-    """Create a new user."""
+    # Create a new user.
     if db.query(User).filter(User.username == payload.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
     if payload.email and db.query(User).filter(User.email == payload.email).first():
@@ -74,7 +74,7 @@ def create_user(payload: UserCreate, db: DBSession, _: RequireAdmin):
 
 @router.get("/{user_id}", response_model=UserOut)
 def get_user(user_id: int, db: DBSession, _: RequireAdmin):
-    """Get a specific user by ID."""
+    # Get a specific user by ID.
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -92,7 +92,7 @@ def get_user(user_id: int, db: DBSession, _: RequireAdmin):
 
 @router.patch("/{user_id}", response_model=UserOut)
 def update_user(user_id: int, payload: UserUpdate, db: DBSession, _: RequireAdmin):
-    """Update a user."""
+    # Update a user.
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -123,7 +123,7 @@ def update_user(user_id: int, payload: UserUpdate, db: DBSession, _: RequireAdmi
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(user_id: int, db: DBSession, _: RequireAdmin):
-    """Delete a user and all their related data."""
+    # Delete a user and all their related data.
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

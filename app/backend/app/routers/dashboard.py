@@ -1,4 +1,4 @@
-"""Dashboard and reporting endpoints."""
+# Dashboard and reporting endpoints.
 
 import csv
 import io
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 @router.get("/stats", response_model=DashboardStats)
 def get_dashboard_stats(db: DBSession, current_user: CurrentUser):
-    """Get dashboard statistics."""
+    # Get dashboard statistics.
     if current_user.role == Role.ADMIN:
         total_students = db.query(User).filter(User.role == Role.STUDENT).count()
         total_lecturers = db.query(User).filter(User.role == Role.LECTURER).count()
@@ -92,7 +92,7 @@ def get_attendance_report(
     skip: int = 0,
     limit: int = 500,
 ):
-    """Generate attendance report with filters."""
+    # Generate attendance report with filters.
     query = db.query(Attendance).join(Session).join(Module).join(
         User, Attendance.student_id == User.id
     )
@@ -144,7 +144,7 @@ def export_attendance_csv(
     date_from: Optional[datetime] = Query(None),
     date_to: Optional[datetime] = Query(None),
 ):
-    """Export attendance report as CSV."""
+    # Export attendance report as CSV.
     query = db.query(Attendance).join(Session).join(Module).join(
         User, Attendance.student_id == User.id
     )
@@ -196,13 +196,11 @@ def export_attendance_csv(
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Student Statistics (FR11)
-# ─────────────────────────────────────────────────────────────────────────────
 
 @router.get("/student-stats", response_model=StudentAttendanceStats)
 def get_student_statistics(db: DBSession, current_user: CurrentUser):
-    """Get detailed attendance statistics for the current student."""
+    # Get detailed attendance statistics for the current student.
     if current_user.role != Role.STUDENT:
         raise HTTPException(status_code=403, detail="Only students can access their statistics")
     

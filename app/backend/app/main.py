@@ -1,4 +1,4 @@
-"""FastAPI application entry point."""
+# FastAPI application entry point.
 
 import logging
 from contextlib import asynccontextmanager
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan: startup and shutdown events."""
+    # Application lifespan: startup and shutdown events.
     # Startup
     logger.info(f"Starting AttendanceMS (env={settings.APP_ENV})")
     
@@ -67,7 +67,7 @@ app.add_middleware(
 # Health check endpoint
 @app.get("/health", tags=["health"])
 def health_check():
-    """Health check endpoint for load balancer / container orchestration."""
+    # Health check endpoint for load balancer / container orchestration.
     return {"status": "healthy", "service": "attendancems"}
 
 
@@ -90,7 +90,7 @@ if STATIC_DIR.exists():
     
     @app.get("/{full_path:path}")
     async def serve_spa(request: Request, full_path: str):
-        """Serve the SPA for all non-API routes."""
+        # Serve the SPA for all non-API routes.
         # Skip API routes
         if full_path.startswith("api/") or full_path in ["docs", "redoc", "openapi.json", "health"]:
             return JSONResponse({"detail": "Not Found"}, status_code=404)
@@ -109,7 +109,7 @@ if STATIC_DIR.exists():
 else:
     @app.get("/")
     def root():
-        """Root endpoint when no frontend is built."""
+        # Root endpoint when no frontend is built.
         return {
             "message": "AttendanceMS API",
             "docs": "/docs",

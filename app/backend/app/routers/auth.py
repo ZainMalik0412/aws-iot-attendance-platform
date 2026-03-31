@@ -1,4 +1,4 @@
-"""Authentication endpoints."""
+# Authentication endpoints.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: DBSession = None):
-    """Authenticate user and return JWT token."""
+    # Authenticate user and return JWT token.
     user = db.query(User).filter(User.username == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
@@ -29,7 +29,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: DBSession = None
 
 @router.post("/login/json", response_model=Token)
 def login_json(payload: LoginRequest, db: DBSession):
-    """Authenticate user via JSON body and return JWT token."""
+    # Authenticate user via JSON body and return JWT token.
     user = db.query(User).filter(User.username == payload.username).first()
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
@@ -44,7 +44,7 @@ def login_json(payload: LoginRequest, db: DBSession):
 
 @router.get("/me", response_model=UserMe)
 def get_current_user_info(current_user: CurrentUser):
-    """Get current authenticated user's information."""
+    # Get current authenticated user's information.
     return UserMe(
         id=current_user.id,
         username=current_user.username,
@@ -61,12 +61,9 @@ def get_current_user_info(current_user: CurrentUser):
 
 @router.post("/signup", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def signup(payload: UserCreate, db: DBSession):
-    """
-    Register a new user account.
-    
-    New users are created as students by default.
-    After signing up, users should register their face for attendance verification.
-    """
+    # Register a new user account.
+    # New users are created as students by default.
+    # After signing up, users should register their face for attendance verification.
     if db.query(User).filter(User.username == payload.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
     if payload.email and db.query(User).filter(User.email == payload.email).first():

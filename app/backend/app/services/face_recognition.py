@@ -1,16 +1,14 @@
-"""
-Face recognition service.
-
-This module implements face detection and recognition using Pillow for image processing
-and a simplified embedding approach. For production, this can be extended with
-more sophisticated ML models.
-
-Key concepts:
-1. Face Detection: Simple image validation (production would use ML model)
-2. Face Encoding: Generate embedding vector from image features
-3. Face Matching: Compare embeddings using cosine similarity
-4. Storage: Embeddings stored as binary blobs in PostgreSQL (via numpy tobytes/frombuffer)
-"""
+# Face recognition service.
+#
+# This module implements face detection and recognition using Pillow for image processing
+# and a simplified embedding approach. For production, this can be extended with
+# more sophisticated ML models.
+#
+# Key concepts:
+# 1. Face Detection: Simple image validation (production would use ML model)
+# 2. Face Encoding: Generate embedding vector from image features
+# 3. Face Matching: Compare embeddings using cosine similarity
+# 4. Storage: Embeddings stored as binary blobs in PostgreSQL (via numpy tobytes/frombuffer)
 
 import base64
 import hashlib
@@ -35,11 +33,8 @@ EMBEDDING_SIZE = 128
 
 
 def decode_base64_image(image_base64: str) -> Image.Image:
-    """
-    Decode a base64-encoded image string to a PIL Image.
-    
-    Supports data URLs (data:image/...;base64,...) and raw base64.
-    """
+    # Decode a base64-encoded image string to a PIL Image.
+    # Supports data URLs (data:image/...;base64,...) and raw base64.
     # Strip data URL prefix if present
     if "," in image_base64:
         image_base64 = image_base64.split(",", 1)[1]
@@ -53,17 +48,15 @@ def decode_base64_image(image_base64: str) -> Image.Image:
 
 
 def detect_faces(image: Image.Image) -> List[Tuple[int, int, int, int]]:
-    """
-    Detect faces in an image using fast LBP cascade classifier.
-    
-    OPTIMIZED FOR SPEED - processes frames in <50ms for real-time detection:
-    - Uses LBP cascade (3-5x faster than Haar)
-    - Downscales image for faster processing
-    - Aggressive scaleFactor for fewer passes
-    - Single cascade pass (no redundant checks)
-    
-    Returns list of face locations as (top, right, bottom, left) tuples.
-    """
+    # Detect faces in an image using fast LBP cascade classifier.
+    #
+    # OPTIMIZED FOR SPEED - processes frames in <50ms for real-time detection:
+    # - Uses LBP cascade (3-5x faster than Haar)
+    # - Downscales image for faster processing
+    # - Aggressive scaleFactor for fewer passes
+    # - Single cascade pass (no redundant checks)
+    #
+    # Returns list of face locations as (top, right, bottom, left) tuples.
     # Convert PIL Image to OpenCV format
     img_array = np.array(image)
     
@@ -89,16 +82,27 @@ def detect_faces(image: Image.Image) -> List[Tuple[int, int, int, int]]:
     # FAST detection parameters:
     # - scaleFactor=1.15: larger steps = much faster (was 1.05)
     # - minNeighbors=2: lower = catches faces quickly
-    # - minSize=(30, 30): reasonable minimum for speed
+    # - minSize=(20, 20): lowered from 30 to catch smaller distant faces
     detection_params = {
         'scaleFactor': 1.15,
         'minNeighbors': 2,
-        'minSize': (30, 30),
+        'minSize': (20, 20),
         'flags': cv2.CASCADE_SCALE_IMAGE
     }
     
     # Fast single-pass face detection
     faces = _face_cascade.detectMultiScale(gray, **detection_params)
+    
+    # Fallback: if no faces found, retry with finer scale (slower but catches
+    # small/distant faces that the fast pass misses)
+    if len(faces) == 0:
+        fallback_params = {
+            'scaleFactor': 1.05,
+            'minNeighbors': 2,
+            'minSize': (15, 15),
+            'flags': cv2.CASCADE_SCALE_IMAGE
+        }
+        faces = _face_cascade.detectMultiScale(gray, **fallback_params)
     
     # Convert to (top, right, bottom, left) format and scale back to original size
     face_locations = []
@@ -119,12 +123,9 @@ def detect_faces(image: Image.Image) -> List[Tuple[int, int, int, int]]:
 
 
 def _non_max_suppression(boxes: List, overlap_thresh: float = 0.3) -> List[Tuple[int, int, int, int]]:
-    """
-    Apply non-maximum suppression to remove overlapping face detections.
-    
-    This prevents the same face from being detected multiple times
-    by different cascades.
-    """
+    # Apply non-maximum suppression to remove overlapping face detections.
+    # This prevents the same face from being detected multiple times
+    # by different cascades.
     if len(boxes) == 0:
         return []
     
@@ -178,12 +179,9 @@ def _non_max_suppression(boxes: List, overlap_thresh: float = 0.3) -> List[Tuple
 
 
 def _image_to_embedding(image: Image.Image) -> np.ndarray:
-    """
-    Generate a pseudo-embedding from image features.
-    
-    This uses image statistics and a hash-based approach for demo purposes.
-    For production, use a proper face embedding model (e.g., FaceNet, ArcFace).
-    """
+    # Generate a pseudo-embedding from image features.
+    # This uses image statistics and a hash-based approach for demo purposes.
+    # For production, use a proper face embedding model (e.g., FaceNet, ArcFace).
     # Resize to standard size
     img_resized = image.resize((64, 64))
     img_array = np.array(img_resized, dtype=np.float32) / 255.0
@@ -230,11 +228,8 @@ def _image_to_embedding(image: Image.Image) -> np.ndarray:
 
 
 def encode_faces(image: Image.Image, face_locations: Optional[List] = None) -> List[np.ndarray]:
-    """
-    Generate face encodings for faces in an image.
-    
-    Returns list of numpy arrays, one per detected face.
-    """
+    # Generate face encodings for faces in an image.
+    # Returns list of numpy arrays, one per detected face.
     if face_locations is None:
         face_locations = detect_faces(image)
     
@@ -249,12 +244,12 @@ def encode_faces(image: Image.Image, face_locations: Optional[List] = None) -> L
 
 
 def encoding_to_bytes(encoding: np.ndarray) -> bytes:
-    """Convert a face encoding numpy array to bytes for database storage."""
+    # Convert a face encoding numpy array to bytes for database storage.
     return encoding.astype(np.float64).tobytes()
 
 
 def bytes_to_encoding(data: bytes) -> np.ndarray:
-    """Convert stored bytes back to a face encoding numpy array."""
+    # Convert stored bytes back to a face encoding numpy array.
     return np.frombuffer(data, dtype=np.float64)
 
 
@@ -263,12 +258,9 @@ def compare_faces(
     face_to_check: np.ndarray,
     tolerance: Optional[float] = None,
 ) -> Tuple[bool, float]:
-    """
-    Compare a face encoding against a list of known encodings.
-    
-    Uses cosine similarity for comparison.
-    Returns (matched: bool, confidence: float).
-    """
+    # Compare a face encoding against a list of known encodings.
+    # Uses cosine similarity for comparison.
+    # Returns (matched: bool, confidence: float).
     if tolerance is None:
         tolerance = settings.FACE_RECOGNITION_TOLERANCE
     
@@ -295,12 +287,9 @@ def compare_faces(
 
 
 def extract_and_encode_face(image_base64: str) -> Tuple[Optional[np.ndarray], str]:
-    """
-    Extract and encode a face from a base64 image.
-    
-    Returns (encoding, message).
-    If no face or multiple faces found, returns (None, error_message).
-    """
+    # Extract and encode a face from a base64 image.
+    # Returns (encoding, message).
+    # If no face or multiple faces found, returns (None, error_message).
     try:
         image = decode_base64_image(image_base64)
     except Exception as e:
@@ -322,14 +311,12 @@ def extract_and_encode_face(image_base64: str) -> Tuple[Optional[np.ndarray], st
 
 
 def extract_all_faces(image_base64: str) -> Tuple[List[Tuple[np.ndarray, Tuple[int, int, int, int]]], str]:
-    """
-    Extract and encode ALL faces from a base64 image (for live recognition).
-    
-    Returns (list of (encoding, face_location) tuples, message).
-    Each face_location is (top, right, bottom, left) for drawing bounding boxes.
-    Used by lecturers during live sessions to detect multiple students.
-    Uses OpenCV Haar cascade for accurate face-only detection.
-    """
+    # Extract and encode ALL faces from a base64 image (for live recognition).
+    #
+    # Returns (list of (encoding, face_location) tuples, message).
+    # Each face_location is (top, right, bottom, left) for drawing bounding boxes.
+    # Used by lecturers during live sessions to detect multiple students.
+    # Uses OpenCV Haar cascade for accurate face-only detection.
     try:
         image = decode_base64_image(image_base64)
     except Exception as e:
@@ -346,6 +333,8 @@ def extract_all_faces(image_base64: str) -> Tuple[List[Tuple[np.ndarray, Tuple[i
     if len(face_locations) == 0:
         return [], "No faces detected"
     
+    logger.debug(f"Detected {len(face_locations)} face(s) in {width}x{height} image")
+    
     # Return encodings paired with their face locations for bounding box display
     encodings = encode_faces(image, face_locations)
     results = list(zip(encodings, face_locations))
@@ -357,21 +346,23 @@ def match_face_to_students(
     student_encodings: List[Tuple[int, str, List[np.ndarray]]],
     tolerance: Optional[float] = None,
 ) -> Optional[Tuple[int, str, float]]:
-    """
-    Match a single face encoding against a list of students' encodings.
-    
-    Args:
-        face_encoding: The encoding to match
-        student_encodings: List of (student_id, student_name, [encodings])
-    
-    Returns:
-        (student_id, student_name, confidence) if matched, None otherwise
-    """
+    # Match a single face encoding against a list of students' encodings.
+    #
+    # Args:
+    #     face_encoding: The encoding to match
+    #     student_encodings: List of (student_id, student_name, [encodings])
+    #
+    # Returns:
+    #     (student_id, student_name, confidence) if matched, None otherwise
     if tolerance is None:
         tolerance = settings.FACE_RECOGNITION_TOLERANCE
     
+    ABSOLUTE_MIN_CONFIDENCE = 0.55
+    MIN_CONFIDENCE_GAP = 0.08
+
     best_match = None
     best_confidence = 0.0
+    second_best_confidence = 0.0
     
     for student_id, student_name, encodings in student_encodings:
         if not encodings:
@@ -379,7 +370,21 @@ def match_face_to_students(
         
         matched, confidence = compare_faces(encodings, face_encoding, tolerance)
         if matched and confidence > best_confidence:
+            second_best_confidence = best_confidence
             best_match = (student_id, student_name, confidence)
             best_confidence = confidence
+        elif matched and confidence > second_best_confidence:
+            second_best_confidence = confidence
     
+    if best_match is None:
+        return None
+
+    # Hard floor: reject matches below absolute minimum confidence
+    if best_confidence < ABSOLUTE_MIN_CONFIDENCE:
+        return None
+
+    # Ambiguity check: reject if gap between best and second-best is too small
+    if second_best_confidence > 0 and (best_confidence - second_best_confidence) < MIN_CONFIDENCE_GAP:
+        return None
+
     return best_match

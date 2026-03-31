@@ -1,1 +1,1 @@
-"""AttendanceMS Backend Application."""
+# AttendanceMS Backend Application.

@@ -1,10 +1,10 @@
-"""Tests for module management endpoints."""
+# Tests for module management endpoints.
 
 import pytest
 
 
 def test_list_modules_as_admin(client, admin_token, test_module):
-    """Test listing modules as admin."""
+    # Test listing modules as admin.
     response = client.get(
         "/api/modules",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -15,7 +15,7 @@ def test_list_modules_as_admin(client, admin_token, test_module):
 
 
 def test_create_module(client, admin_token, lecturer_user):
-    """Test creating a module."""
+    # Test creating a module.
     response = client.post(
         "/api/modules",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -33,7 +33,7 @@ def test_create_module(client, admin_token, lecturer_user):
 
 
 def test_create_module_duplicate_code(client, admin_token, test_module):
-    """Test creating module with duplicate code."""
+    # Test creating module with duplicate code.
     response = client.post(
         "/api/modules",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -46,7 +46,7 @@ def test_create_module_duplicate_code(client, admin_token, test_module):
 
 
 def test_get_module(client, admin_token, test_module):
-    """Test getting a specific module."""
+    # Test getting a specific module.
     response = client.get(
         f"/api/modules/{test_module.id}",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -58,7 +58,7 @@ def test_get_module(client, admin_token, test_module):
 
 
 def test_update_module(client, admin_token, test_module):
-    """Test updating a module."""
+    # Test updating a module.
     response = client.patch(
         f"/api/modules/{test_module.id}",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -70,7 +70,7 @@ def test_update_module(client, admin_token, test_module):
 
 
 def test_delete_module(client, admin_token, test_module):
-    """Test deleting a module."""
+    # Test deleting a module.
     response = client.delete(
         f"/api/modules/{test_module.id}",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -79,7 +79,7 @@ def test_delete_module(client, admin_token, test_module):
 
 
 def test_lecturer_cannot_create_module(client, lecturer_token):
-    """Test that lecturers cannot create modules."""
+    # Test that lecturers cannot create modules.
     response = client.post(
         "/api/modules",
         headers={"Authorization": f"Bearer {lecturer_token}"},

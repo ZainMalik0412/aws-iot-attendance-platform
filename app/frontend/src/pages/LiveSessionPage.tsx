@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
 import { Progress } from '@/components/ui/progress'
 import {
@@ -27,6 +28,7 @@ import {
   ArrowLeft,
   Loader2,
   AlertCircle,
+  Wifi,
 } from 'lucide-react'
 
 interface LiveSessionState {
@@ -60,13 +62,14 @@ interface FaceBox {
 }
 
 interface RecognizedStudent {
-  student_id: number
-  student_name: string
-  username: string
+  student_id: number | null
+  student_name: string | null
+  username: string | null
   confidence: number
-  status: 'present' | 'late'
+  status: 'present' | 'late' | null
   already_marked: boolean
   face_box: FaceBox | null
+  is_unknown?: boolean
 }
 
 const statusIcons = {
@@ -92,61 +95,91 @@ export default function LiveSessionPage() {
   const [isRecognizing, setIsRecognizing] = useState(false)
   const [lastRecognized, setLastRecognized] = useState<RecognizedStudent[]>([])
   const [frameCount, setFrameCount] = useState(0)
+  const [cameraSource, setCameraSource] = useState<'macbook' | 'esp32'>('macbook')
+  const [esp32IP, setEsp32IP] = useState('192.168.0.182')
+  const [esp32Status, setEsp32Status] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle')
+  const esp32CanvasRef = useRef<HTMLCanvasElement>(null)
+  const esp32ActiveRef = useRef(false)
+  const latestFrameRef = useRef<ImageBitmap | null>(null)
+
+  // Servo tracking state
+  const panRef = useRef(90)
+  const tiltRef = useRef(90)
 
   // Draw face bounding boxes on canvas overlay
   const drawFaceBoxes = useCallback((students: RecognizedStudent[]) => {
     const canvas = canvasRef.current
-    const video = webcamRef.current?.video
-    if (!canvas || !video) return
+    if (!canvas) return
+
+    // Get display element and source dimensions based on camera source
+    let displayEl: HTMLElement | null = null
+    let sourceWidth = 640
+    let sourceHeight = 480
+
+    if (cameraSource === 'esp32') {
+      displayEl = esp32CanvasRef.current
+      sourceWidth = 320
+      sourceHeight = 240
+    } else {
+      displayEl = webcamRef.current?.video || null
+    }
+
+    if (!displayEl) return
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // Match canvas size to video display size
-    const videoRect = video.getBoundingClientRect()
-    canvas.width = videoRect.width
-    canvas.height = videoRect.height
+    // Match canvas size to display element size
+    const displayRect = displayEl.getBoundingClientRect()
+    canvas.width = displayRect.width
+    canvas.height = displayRect.height
 
     // Clear previous drawings
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    // Calculate scale factors (video capture size vs display size)
-    const scaleX = videoRect.width / 640
-    const scaleY = videoRect.height / 480
+    // Calculate scale factors (source capture size vs display size)
+    const scaleX = displayRect.width / sourceWidth
+    const scaleY = displayRect.height / sourceHeight
 
     students.forEach((student) => {
       if (!student.face_box) return
 
       const { top, right, bottom, left } = student.face_box
       
-      // Scale coordinates to match displayed video size
+      // Scale coordinates to match displayed size
       const x = left * scaleX
       const y = top * scaleY
       const width = (right - left) * scaleX
       const height = (bottom - top) * scaleY
 
-      // Draw green rectangle
-      ctx.strokeStyle = '#22c55e'
+      const isUnknown = student.is_unknown === true
+
+      // Draw rectangle — red for unknown, green for matched
+      ctx.strokeStyle = isUnknown ? '#ef4444' : '#22c55e'
       ctx.lineWidth = 3
       ctx.strokeRect(x, y, width, height)
 
       // Draw label background
-      const label = `${student.student_name} (@${student.username})`
-      const confidence = `${Math.round(student.confidence * 100)}%`
+      const label = isUnknown ? 'Unknown' : `${student.student_name} (@${student.username})`
+      const confidence = isUnknown ? '' : `${Math.round(student.confidence * 100)}%`
       ctx.font = 'bold 14px Inter, system-ui, sans-serif'
       const labelWidth = Math.max(ctx.measureText(label).width, ctx.measureText(confidence).width) + 16
-      const labelHeight = 44
+      const labelHeight = isUnknown ? 28 : 44
 
-      ctx.fillStyle = 'rgba(34, 197, 94, 0.9)'
+      ctx.fillStyle = isUnknown ? 'rgba(239, 68, 68, 0.9)' : 'rgba(34, 197, 94, 0.9)'
       ctx.fillRect(x, y - labelHeight, labelWidth, labelHeight)
 
       // Draw text
       ctx.fillStyle = '#ffffff'
-      ctx.fillText(label, x + 8, y - 26)
-      ctx.font = '12px Inter, system-ui, sans-serif'
-      ctx.fillText(confidence, x + 8, y - 8)
+      if (isUnknown) {
+        ctx.fillText(label, x + 8, y - 8)
+      } else {
+        ctx.fillText(label, x + 8, y - 26)
+        ctx.font = '12px Inter, system-ui, sans-serif'
+        ctx.fillText(confidence, x + 8, y - 8)
+      }
     })
-  }, [])
+  }, [cameraSource])
   
   const sessionIdNum = parseInt(sessionId || '0')
 
@@ -174,7 +207,7 @@ export default function LiveSessionPage() {
         setLastRecognized(data.recognized_students)
         // Draw bounding boxes around recognized faces
         drawFaceBoxes(data.recognized_students)
-        const newlyMarked = data.recognized_students.filter((s: RecognizedStudent) => !s.already_marked)
+        const newlyMarked = data.recognized_students.filter((s: RecognizedStudent) => !s.already_marked && !s.is_unknown)
         if (newlyMarked.length > 0) {
           toast({
             title: `Recognized ${newlyMarked.length} student(s)`,
@@ -183,6 +216,26 @@ export default function LiveSessionPage() {
         }
         queryClient.invalidateQueries({ queryKey: ['live-attendance', sessionIdNum] })
         queryClient.invalidateQueries({ queryKey: ['live-session-state', sessionIdNum] })
+
+        // Servo tracking — move mount toward detected face (ESP32 only)
+        if (cameraSource === 'esp32') {
+          const face = data.recognized_students.find((s: RecognizedStudent) => s.face_box)
+          if (face && face.face_box) {
+            const cx = (face.face_box.left + face.face_box.right) / 2
+            const cy = (face.face_box.top + face.face_box.bottom) / 2
+            let ex = (cx / 320) - 0.5
+            let ey = (cy / 240) - 0.5
+            if (Math.abs(ex) < 0.05) ex = 0
+            if (Math.abs(ey) < 0.05) ey = 0
+            const newPan = Math.max(20, Math.min(160, panRef.current + ex * 30))
+            const newTilt = Math.max(30, Math.min(150, tiltRef.current + ey * 30))
+            panRef.current = newPan
+            tiltRef.current = newTilt
+            fetch(`http://${esp32IP}/servo?pan=${Math.round(newPan)}&tilt=${Math.round(newTilt)}`, {
+              mode: 'no-cors',
+            }).catch(() => {})
+          }
+        }
       } else {
         // Clear boxes if no faces recognized
         const canvas = canvasRef.current
@@ -231,13 +284,120 @@ export default function LiveSessionPage() {
     }
   }, [recognizeMutation])
 
+  // Capture frame from ESP32 for recognition (reuses latest frame from display loop)
+  const captureEsp32Frame = useCallback(() => {
+    if (recognizeMutation.isPending) return
+
+    const bitmap = latestFrameRef.current
+    if (!bitmap) return
+
+    const offscreen = document.createElement('canvas')
+    offscreen.width = bitmap.width
+    offscreen.height = bitmap.height
+    const ctx = offscreen.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(bitmap, 0, 0)
+    const base64 = offscreen.toDataURL('image/jpeg', 0.85)
+    recognizeMutation.mutate(base64)
+  }, [recognizeMutation])
+
+  // Connect to ESP32 — fetch first frame to verify reachability
+  const connectToEsp32 = useCallback(async () => {
+    setEsp32Status('connecting')
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 3000)
+    try {
+      const response = await fetch(`http://${esp32IP}/jpg`, {
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
+      const blob = await response.blob()
+      const bitmap = await createImageBitmap(blob)
+      latestFrameRef.current = bitmap
+      const canvas = esp32CanvasRef.current
+      if (canvas) {
+        const ctx = canvas.getContext('2d')
+        canvas.width = bitmap.width
+        canvas.height = bitmap.height
+        ctx?.drawImage(bitmap, 0, 0)
+      }
+      setEsp32Status('connected')
+    } catch (err) {
+      clearTimeout(timeout)
+      setEsp32Status('error')
+    }
+  }, [esp32IP])
+
+  // ESP32 frame fetch loop — single connection, stores frames in latestFrameRef
+  useEffect(() => {
+    if (cameraSource !== 'esp32' || esp32Status !== 'connected') {
+      esp32ActiveRef.current = false
+      latestFrameRef.current = null
+      return
+    }
+
+    esp32ActiveRef.current = true
+
+    const fetchLoop = async () => {
+      while (esp32ActiveRef.current) {
+        try {
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 800)
+          const response = await fetch(`http://${esp32IP}/jpg`, {
+            cache: 'no-store',
+            signal: controller.signal,
+          })
+          clearTimeout(timeout)
+          const blob = await response.blob()
+          const bitmap = await createImageBitmap(blob)
+          latestFrameRef.current = bitmap
+        } catch {
+          await new Promise(r => setTimeout(r, 50))
+        }
+      }
+    }
+
+    fetchLoop()
+
+    return () => {
+      esp32ActiveRef.current = false
+    }
+  }, [cameraSource, esp32Status, esp32IP])
+
+  // ESP32 canvas render loop — draws latest frame at display refresh rate
+  useEffect(() => {
+    if (cameraSource !== 'esp32' || esp32Status !== 'connected') return
+
+    let animId: number
+    const render = () => {
+      const bitmap = latestFrameRef.current
+      const canvas = esp32CanvasRef.current
+      if (bitmap && canvas) {
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+            canvas.width = bitmap.width
+            canvas.height = bitmap.height
+          }
+          ctx.drawImage(bitmap, 0, 0)
+        }
+      }
+      animId = requestAnimationFrame(render)
+    }
+
+    animId = requestAnimationFrame(render)
+    return () => cancelAnimationFrame(animId)
+  }, [cameraSource, esp32Status])
+
   // Auto-capture every 200ms (5 FPS) for real-time detection of walking students
   useEffect(() => {
     if (!isRecognizing || sessionState?.status !== 'active') return
 
-    const interval = setInterval(captureAndRecognize, 200)
+    const captureFn = cameraSource === 'esp32' ? captureEsp32Frame : captureAndRecognize
+    const interval = setInterval(captureFn, 200)
     return () => clearInterval(interval)
-  }, [isRecognizing, sessionState?.status, captureAndRecognize])
+  }, [isRecognizing, sessionState?.status, cameraSource, captureAndRecognize, captureEsp32Frame])
 
   // Clear canvas when recognition stops
   useEffect(() => {
@@ -337,19 +497,124 @@ export default function LiveSessionPage() {
             </div>
             <CardDescription>
               {isRecognizing 
-                ? `Processing frames... (${frameCount} processed)` 
-                : 'Click Start Recognition to begin detecting faces'}
+                ? `Processing frames via ${cameraSource === 'esp32' ? 'ESP32' : 'MacBook'} camera... (${frameCount} processed)` 
+                : 'Select a camera source and click Start Recognition'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Camera Source Selector — visible before recognition starts */}
+            {sessionState.status === 'active' && !isRecognizing && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={cameraSource === 'macbook' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setCameraSource('macbook')
+                      setEsp32Status('idle')
+                    }}
+                  >
+                    MacBook Camera
+                  </Button>
+                  <Button
+                    variant={cameraSource === 'esp32' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setCameraSource('esp32')
+                      connectToEsp32()
+                    }}
+                  >
+                    ESP32 Camera
+                  </Button>
+                </div>
+                {cameraSource === 'esp32' && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-muted-foreground whitespace-nowrap">ESP32 IP:</label>
+                    <Input
+                      value={esp32IP}
+                      onChange={(e) => setEsp32IP(e.target.value)}
+                      placeholder="192.168.0.182"
+                      className="max-w-[200px] h-8 text-sm"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => connectToEsp32()}
+                      disabled={esp32Status === 'connecting'}
+                    >
+                      {esp32Status === 'connecting' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        'Connect'
+                      )}
+                    </Button>
+                    {esp32Status === 'connected' && (
+                      <Badge variant="success" className="text-xs">Connected</Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Source label — visible while recognition is active */}
+            {isRecognizing && (
+              <Badge variant="outline" className="text-xs">
+                {cameraSource === 'esp32' ? (
+                  <><Wifi className="mr-1 h-3 w-3" /> ESP32 ({esp32IP})</>
+                ) : (
+                  <><Camera className="mr-1 h-3 w-3" /> MacBook Camera</>
+                )}
+              </Badge>
+            )}
+
             <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
-              <Webcam
-                ref={webcamRef}
-                audio={false}
-                screenshotFormat="image/jpeg"
-                videoConstraints={{ facingMode: 'user', width: 640, height: 480 }}
-                className="h-full w-full object-cover"
-              />
+              {cameraSource === 'macbook' ? (
+                <Webcam
+                  ref={webcamRef}
+                  audio={false}
+                  screenshotFormat="image/jpeg"
+                  videoConstraints={{ facingMode: 'user', width: 640, height: 480 }}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <>
+                  <canvas
+                    ref={esp32CanvasRef}
+                    className="h-full w-full object-cover"
+                  />
+                  {esp32Status === 'connecting' && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                      <div className="text-center">
+                        <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
+                        <p className="mt-2 text-sm text-muted-foreground">Connecting to ESP32...</p>
+                      </div>
+                    </div>
+                  )}
+                  {esp32Status === 'error' && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                      <div className="text-center space-y-3">
+                        <AlertCircle className="mx-auto h-10 w-10 text-destructive" />
+                        <p className="text-sm text-destructive font-medium">
+                          Cannot reach ESP32 at {esp32IP}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Check the IP address and ensure ESP32 is powered.
+                        </p>
+                        <Button size="sm" variant="outline" onClick={() => connectToEsp32()}>
+                          Retry
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {esp32Status === 'idle' && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                      <div className="text-center">
+                        <Wifi className="mx-auto h-8 w-8 text-muted-foreground" />
+                        <p className="mt-2 text-sm text-muted-foreground">Select ESP32 Camera to connect</p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
               {/* Canvas overlay for drawing face bounding boxes */}
               <canvas
                 ref={canvasRef}
@@ -409,15 +674,17 @@ export default function LiveSessionPage() {
               <div className="rounded-lg border bg-muted/50 p-4">
                 <h4 className="font-medium mb-2">Last Recognized</h4>
                 <div className="flex flex-wrap gap-2">
-                  {lastRecognized.map((student) => (
+                  {lastRecognized.map((student, idx) => (
                     <Badge
-                      key={student.student_id}
-                      variant={student.already_marked ? 'secondary' : 'success'}
+                      key={student.is_unknown ? `unknown-${idx}` : student.student_id}
+                      variant={student.is_unknown ? 'destructive' : student.already_marked ? 'secondary' : 'success'}
                     >
-                      {student.student_name}
-                      <span className="ml-1 opacity-70">
-                        ({Math.round(student.confidence * 100)}%)
-                      </span>
+                      {student.is_unknown ? 'Unknown' : student.student_name}
+                      {!student.is_unknown && (
+                        <span className="ml-1 opacity-70">
+                          ({Math.round(student.confidence * 100)}%)
+                        </span>
+                      )}
                     </Badge>
                   ))}
                 </div>

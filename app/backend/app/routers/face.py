@@ -1,4 +1,4 @@
-"""Face registration and verification endpoints."""
+# Face registration and verification endpoints.
 
 from datetime import datetime, timedelta
 
@@ -19,12 +19,9 @@ router = APIRouter(prefix="/face", tags=["face"])
 
 @router.post("/register", response_model=FaceRegisterResponse)
 def register_face(payload: FaceRegisterRequest, db: DBSession, current_user: CurrentUser):
-    """
-    Register a face encoding for the current user.
-    
-    Students register their own face. Admins can register faces for any user
-    by passing user_id in the request (not implemented here for simplicity).
-    """
+    # Register a face encoding for the current user.
+    # Students register their own face. Admins can register faces for any user
+    # by passing user_id in the request (not implemented here for simplicity).
     if current_user.role not in [Role.STUDENT, Role.ADMIN]:
         raise HTTPException(status_code=403, detail="Only students can register faces")
     
@@ -58,7 +55,7 @@ def register_face(payload: FaceRegisterRequest, db: DBSession, current_user: Cur
 
 @router.delete("/register", response_model=FaceRegisterResponse)
 def clear_face_registrations(db: DBSession, current_user: CurrentUser):
-    """Clear all face registrations for the current user."""
+    # Clear all face registrations for the current user.
     if current_user.role not in [Role.STUDENT, Role.ADMIN]:
         raise HTTPException(status_code=403, detail="Only students can manage their face registrations")
     
@@ -78,16 +75,14 @@ def verify_face_and_mark_attendance(
     db: DBSession,
     current_user: CurrentUser,
 ):
-    """
-    Verify face and mark attendance for a session.
-    
-    This endpoint:
-    1. Checks the session is active
-    2. Checks the student is enrolled in the module
-    3. Extracts face encoding from the submitted image
-    4. Compares against the student's registered face encodings
-    5. If matched, marks attendance (PRESENT or LATE based on threshold)
-    """
+    # Verify face and mark attendance for a session.
+    #
+    # This endpoint:
+    # 1. Checks the session is active
+    # 2. Checks the student is enrolled in the module
+    # 3. Extracts face encoding from the submitted image
+    # 4. Compares against the student's registered face encodings
+    # 5. If matched, marks attendance (PRESENT or LATE based on threshold)
     if current_user.role != Role.STUDENT:
         raise HTTPException(status_code=403, detail="Only students can mark attendance via face verification")
     
