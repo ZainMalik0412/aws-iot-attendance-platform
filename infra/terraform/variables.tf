@@ -92,5 +92,5 @@ variable "github_org" {
 variable "github_repo" {
   description = "GitHub repository name"
   type        = string
-  default     = "ecsv1"
+  default     = "aws-iot-attendance-project"
 }
