@@ -34,14 +34,14 @@ variable "app_name" {
 }
 
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = "${var.app_name}-terraform-state"
+  bucket = "${var.app_name}-terraform-state-641250539814"
 
   lifecycle {
     prevent_destroy = true
   }
 
   tags = {
-    Name = "${var.app_name}-terraform-state"
+    Name = "${var.app_name}-terraform-state-641250539814"
   }
 }
 

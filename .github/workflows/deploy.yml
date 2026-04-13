@@ -260,7 +260,7 @@ jobs:
       - name: Force unlock Terraform state if locked
         run: |
           aws dynamodb delete-item --table-name attendancems-terraform-locks \
-            --key '{"LockID":{"S":"attendancems-terraform-state/prod/terraform.tfstate"}}' 2>/dev/null || true
+            --key '{"LockID":{"S":"attendancems-terraform-state-641250539814/prod/terraform.tfstate"}}' 2>/dev/null || true
           echo "✅ Cleared any stale state locks"
 
       - name: Clean up orphaned RDS resources

@@ -13,7 +13,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "attendancems-terraform-state"
+    bucket = "attendancems-terraform-state-641250539814"
     key = "prod/terraform.tfstate"
     region = "eu-west-2"
     encrypt = true

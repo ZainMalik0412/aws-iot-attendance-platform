@@ -59,7 +59,7 @@ jobs:
         run: |
           # Clean up any stale locks from previous failed runs BEFORE terraform init
           aws dynamodb delete-item --table-name attendancems-terraform-locks \
-            --key '{"LockID":{"S":"attendancems-terraform-state/prod/terraform.tfstate"}}' 2>/dev/null || true
+            --key '{"LockID":{"S":"attendancems-terraform-state-641250539814/prod/terraform.tfstate"}}' 2>/dev/null || true
           echo "✅ Cleared any stale state locks"
 
       - name: Terraform Init
@@ -306,28 +306,28 @@ jobs:
         if: success()
         run: |
           # Delete the state file so next apply starts fresh
-          aws s3 rm s3://attendancems-terraform-state/prod/terraform.tfstate || true
+          aws s3 rm s3://attendancems-terraform-state-641250539814/prod/terraform.tfstate || true
           # Clean up old state versions to reduce S3 storage costs
-          aws s3api list-object-versions --bucket attendancems-terraform-state --prefix prod/ \
+          aws s3api list-object-versions --bucket attendancems-terraform-state-641250539814 --prefix prod/ \
             --query 'Versions[?IsLatest==`false`].[Key,VersionId]' --output text 2>/dev/null | \
             while read key version; do
               if [ -n "$key" ] && [ -n "$version" ]; then
-                aws s3api delete-object --bucket attendancems-terraform-state --key "$key" --version-id "$version" 2>/dev/null || true
+                aws s3api delete-object --bucket attendancems-terraform-state-641250539814 --key "$key" --version-id "$version" 2>/dev/null || true
               fi
             done
           # Clean up delete markers
-          aws s3api list-object-versions --bucket attendancems-terraform-state --prefix prod/ \
+          aws s3api list-object-versions --bucket attendancems-terraform-state-641250539814 --prefix prod/ \
             --query 'DeleteMarkers[*].[Key,VersionId]' --output text 2>/dev/null | \
             while read key version; do
               if [ -n "$key" ] && [ -n "$version" ]; then
-                aws s3api delete-object --bucket attendancems-terraform-state --key "$key" --version-id "$version" 2>/dev/null || true
+                aws s3api delete-object --bucket attendancems-terraform-state-641250539814 --key "$key" --version-id "$version" 2>/dev/null || true
               fi
             done
           # Clean up any stale DynamoDB entries
           aws dynamodb delete-item --table-name attendancems-terraform-locks \
-            --key '{"LockID":{"S":"attendancems-terraform-state/prod/terraform.tfstate"}}' || true
+            --key '{"LockID":{"S":"attendancems-terraform-state-641250539814/prod/terraform.tfstate"}}' || true
           aws dynamodb delete-item --table-name attendancems-terraform-locks \
-            --key '{"LockID":{"S":"attendancems-terraform-state/prod/terraform.tfstate-md5"}}' || true
+            --key '{"LockID":{"S":"attendancems-terraform-state-641250539814/prod/terraform.tfstate-md5"}}' || true
           echo "✅ Terraform state cleaned up for fresh rebuild"
 
       - name: Destruction summary
