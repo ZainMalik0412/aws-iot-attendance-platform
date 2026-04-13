@@ -84,7 +84,7 @@ export default function DashboardLayout() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <ScanFace className="h-5 w-5" />
               </div>
-              <span className="text-lg font-semibold">AttendanceMS</span>
+              <span className="text-lg font-semibold">IoT Attendance</span>
             </Link>
             <button
               className="lg:hidden"

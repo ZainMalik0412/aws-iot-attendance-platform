@@ -1,1 +1,1 @@
-# AttendanceMS Backend Application.
+# IoT Smart Attendance System Backend Application.

@@ -180,7 +180,7 @@ def detect_face_local(bgr_upscaled):
 
 def main() -> None:
     print("=" * 60)
-    print("AttendanceMS Hardware Bridge")
+    print("IoT Smart Attendance System - Hardware Bridge")
     print(f"  ESP32 IP   : {ESP32_IP}")
     print(f"  Backend URL: {BACKEND_URL}")
     print(f"  Session ID : {SESSION_ID}")

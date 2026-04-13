@@ -1,6 +1,6 @@
-# AttendanceMS - Production Deployment Guide
+# IoT Smart Attendance System - Production Deployment Guide
 
-This guide walks you through deploying AttendanceMS to AWS using Terraform and GitHub Actions.
+This guide walks you through deploying the IoT Smart Attendance System to AWS using Terraform and GitHub Actions.
 
 ## Architecture Overview
 

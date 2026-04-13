@@ -41,7 +41,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <ScanFace className="h-7 w-7" />
           </div>
-          <CardTitle className="text-2xl">AttendanceMS</CardTitle>
+          <CardTitle className="text-2xl">IoT Smart Attendance</CardTitle>
           <CardDescription>
             Sign in to your account to continue
           </CardDescription>

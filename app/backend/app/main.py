@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Application lifespan: startup and shutdown events.
     # Startup
-    logger.info(f"Starting AttendanceMS (env={settings.APP_ENV})")
+    logger.info(f"Starting IoT Smart Attendance System (env={settings.APP_ENV})")
     
     # Create tables
     Base.metadata.create_all(bind=engine)
@@ -42,11 +42,11 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    logger.info("Shutting down AttendanceMS")
+    logger.info("Shutting down IoT Smart Attendance System")
 
 
 app = FastAPI(
-    title="AttendanceMS API",
+    title="IoT Smart Attendance System API",
     description="Role-based facial recognition attendance management system",
     version="1.0.0",
     lifespan=lifespan,
@@ -111,7 +111,7 @@ else:
     def root():
         # Root endpoint when no frontend is built.
         return {
-            "message": "AttendanceMS API",
+            "message": "IoT Smart Attendance System API",
             "docs": "/docs",
             "health": "/health",
         }

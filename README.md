@@ -1,208 +1,192 @@
-# AttendanceMS
+# IoT Smart Attendance System
 
-A production-ready role-based facial recognition attendance management system built with FastAPI, React, and deployed on AWS ECS Fargate.
+A cloud-native IoT-driven attendance management system deployed on AWS using Infrastructure as Code, containerised with Docker, and fully automated through CI/CD pipelines.
 
-## Features
+## CI/CD Pipeline
 
-- **Facial Recognition** - Register faces and mark attendance via webcam
-- **Role-Based Access Control** - Student, Lecturer, and Admin roles with granular permissions
-- **Live Sessions** - Lecturers can start, pause, resume, and end attendance sessions
-- **Live Camera Recognition** - Real-time face detection during active sessions with automatic attendance marking
-- **Calendar View** - Visual calendar showing upcoming classes for all users
-- **Student Statistics** - Detailed attendance breakdown with per-module analytics and charts
-- **Real-time Dashboard** - Statistics and analytics for attendance tracking
-- **Attendance Filtering** - Filter attendance records by module, session, status, and date range
-- **CSV Export** - Export attendance reports for analysis
-- **Modern UI** - React with Tailwind CSS and shadcn/ui components
+Fully automated deployment pipeline using **GitHub Actions** with **OIDC authentication** (no long-lived AWS credentials).
 
-## Tech Stack
+```
+Push to main
+     │
+     ▼
+┌─────────┐    ┌──────────────┐    ┌─────────────┐    ┌──────────┐    ┌────────────┐    ┌──────────────┐
+│  Test    │───▶│  Check Infra  │───▶│  Terraform   │───▶│  Build   │───▶│  Deploy    │───▶│  Health      │
+│  Suite   │    │  (Drift/Diff) │    │  Apply       │    │  & Push  │    │  to ECS    │    │  Checks      │
+└─────────┘    └──────────────┘    └─────────────┘    └──────────┘    └────────────┘    └──────────────┘
+```
 
-**Backend:**
-- FastAPI (Python 3.10+)
-- SQLAlchemy + Alembic (PostgreSQL)
-- face_recognition library
-- JWT authentication
+| Stage | Description |
+|-------|-------------|
+| **Test** | Runs pytest against a PostgreSQL service container |
+| **Check Infrastructure** | Detects Terraform drift and `.tf` file changes |
+| **Terraform Apply** | Provisions or updates AWS infrastructure |
+| **Build & Push** | Multi-stage Docker build → push to ECR |
+| **Deploy to ECS** | Rolling update with zero-downtime deployment |
+| **Post-Deploy Checks** | Health endpoint verification and API smoke tests |
 
-**Frontend:**
-- React 18 + Vite
-- TypeScript
-- Tailwind CSS + shadcn/ui
-- React Query + Zustand
+### Destroy Pipeline
 
-**Infrastructure:**
-- Docker multi-stage builds
-- AWS ECS Fargate
-- Amazon RDS PostgreSQL
-- Application Load Balancer + HTTPS
-- Terraform IaC
+A separate manually-triggered workflow safely tears down all infrastructure:
+1. Creates an RDS snapshot and stores the ID in SSM Parameter Store
+2. Waits for the snapshot to complete before deleting resources
+3. Runs `terraform destroy` with parallel resource deletion
+4. Cleans up orphaned Route 53 records, ECR images, and task definitions
+5. Preserves only the latest snapshot for cost-efficient data recovery
 
-## Quick Start (Local Development)
+---
 
-### Prerequisites
-- Docker & Docker Compose
-- (Optional) Python 3.10+ and Node.js 18+ for local development without Docker
+## Infrastructure as Code
 
-### Using Docker Compose
+All infrastructure is defined in **Terraform** with a modular structure:
+
+```
+infra/terraform/
+├── main.tf                    # Root module — orchestrates all child modules
+├── variables.tf               # Input variables (region, instance sizes, etc.)
+├── outputs.tf                 # Exported values for CI/CD consumption
+├── provider.tf                # AWS provider config with default tags
+├── bootstrap/                 # One-time setup: S3 state bucket, DynamoDB locks, OIDC
+│   └── main.tf
+└── modules/
+    ├── vpc/                   # VPC, subnets, security groups (no NAT Gateway)
+    ├── ecr/                   # Container registry with lifecycle policies
+    ├── acm/                   # SSL certificate, DNS validation, Route 53 records
+    ├── alb/                   # Application Load Balancer, listeners, target groups
+    ├── rds/                   # PostgreSQL database, Secrets Manager credentials
+    └── ecs/                   # Fargate cluster, service, task definition, IAM roles
+```
+
+## Docker
+
+Multi-stage Dockerfile producing a minimal production image:
+
+```
+Stage 1: frontend-builder    →  Node 20 Alpine — builds React/Vite SPA
+Stage 2: backend-builder     →  Python 3.10 Slim — compiles wheel files
+Stage 3: runtime             →  Python 3.10 Slim — final image (~200MB)
+```
+
+- Non-root user (`appuser`) for security
+- Layer caching optimised for fast CI rebuilds
+- Health check via `curl` on `/health`
+
+---
+
+## Application Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Backend** | FastAPI · Python 3.10 · SQLAlchemy · JWT Auth |
+| **Frontend** | React 18 · TypeScript · Vite · Tailwind CSS · shadcn/ui |
+| **Database** | PostgreSQL 16 (RDS) |
+| **IoT Hardware** | ESP32-CAM · Servo tracking · Real-time frame processing |
+
+---
+
+## Quick Start
+
+### Local Development
 
 ```bash
-# Clone and start
-git clone <repository>
+git clone https://github.com/ZainMalik0412/ecsv1.git
 cd ecsv1
-
-# Start all services
 docker-compose up --build
-
-# Access the application
-# Frontend: http://localhost:8000
-# API Docs: http://localhost:8000/docs
-# Health:   http://localhost:8000/health
 ```
 
-### Local Development (without Docker)
+| Endpoint | URL |
+|----------|-----|
+| Application | http://localhost:8000 |
+| API Docs (Swagger) | http://localhost:8000/docs |
+| Health Check | http://localhost:8000/health |
 
-**Backend:**
-```bash
-cd app/backend
+### Demo Credentials
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+| Role | Username | Password |
+|------|----------|----------|
+| Admin | admin | admin |
+| Lecturer | lecturer | lecturer |
+| Student | student | student |
 
-# Install dependencies
-pip install -r requirements.txt -r requirements-dev.txt
-
-# Set environment variables
-export DATABASE_URL=postgresql+psycopg2://user:pass@localhost:5432/attendancems
-export JWT_SECRET_KEY=your-secret-key
-export SEED_DEMO_DATA=true
-
-# Run migrations
-alembic upgrade head
-
-# Start server
-uvicorn app.main:app --reload --port 8000
-```
-
-**Frontend:**
-```bash
-cd app/frontend
-
-# Install dependencies
-npm install
-
-# Start dev server
-npm run dev
-```
-
-## Demo Credentials
-
-| Role     | Username   | Password   |
-|----------|------------|------------|
-| Student  | student    | student    |
-| Lecturer | lecturer   | lecturer   |
-| Admin    | admin      | admin      |
-
-## API Documentation
-
-Once running, access:
-- **Swagger UI:** http://localhost:8000/docs
-- **ReDoc:** http://localhost:8000/redoc
-
-## Testing
+### Running Tests
 
 ```bash
 cd app/backend
-
-# Run tests
 pytest -v
-
-# With coverage
 pytest --cov=app --cov-report=html
 ```
 
-## Project Structure
+---
 
-```
-ecsv1/
-├── app/
-│   ├── backend/
-│   │   ├── app/
-│   │   │   ├── routers/         # API endpoints
-│   │   │   ├── services/        # Business logic
-│   │   │   ├── models.py        # SQLAlchemy models
-│   │   │   ├── schemas.py       # Pydantic schemas
-│   │   │   ├── auth.py          # JWT & password hashing
-│   │   │   └── main.py          # FastAPI app
-│   │   ├── alembic/             # Database migrations
-│   │   └── tests/               # Backend tests
-│   └── frontend/
-│       ├── src/
-│       │   ├── components/      # UI components
-│       │   ├── pages/           # Page components
-│       │   ├── lib/             # API client & utils
-│       │   └── stores/          # Zustand stores
-│       └── public/
-├── infra/
-│   └── terraform/               # AWS infrastructure
-├── .github/
-│   └── workflows/               # CI/CD pipelines
-├── Dockerfile                   # Multi-stage build
-├── docker-compose.yml           # Local development
-└── README.md
-```
-
-## AWS Deployment
+## Deployment
 
 ### Prerequisites
-1. AWS Account with appropriate permissions
-2. Route53 hosted zone for your domain
-3. Terraform installed locally
 
-### Terraform Deployment
+1. AWS account with Route 53 hosted zone
+2. Terraform >= 1.5.0
+3. GitHub repository with Actions enabled
+
+### Bootstrap (One-Time)
 
 ```bash
-cd infra/terraform
-
-# Copy and configure variables
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your values
-
-# Initialize and apply
-terraform init
-terraform plan
-terraform apply
+cd infra/terraform/bootstrap
+terraform init && terraform apply
 ```
 
-### Manual Deployment (ClickOps)
+This creates the S3 state bucket, DynamoDB lock table, GitHub OIDC provider, and IAM role.
 
-1. **ECR:** Create repository `attendancems`
-2. **RDS:** Create PostgreSQL 16 instance
-3. **Secrets Manager:** Store DB credentials and JWT secret
-4. **ECS:** Create Fargate cluster and service
-5. **ALB:** Create Application Load Balancer with HTTPS
-6. **Route53:** Create A record alias to ALB
+### Deploy
 
-### GitHub Actions CI/CD
+Add the output `github_actions_role_arn` as `AWS_ROLE_ARN` secret in GitHub repo settings, then push to `main`:
 
-Required secrets:
-- `AWS_ROLE_ARN` - IAM role ARN for OIDC authentication
+```bash
+git push origin main
+```
 
-The pipeline will:
-1. Run tests on all PRs
-2. Build and push Docker image to ECR
-3. Deploy to ECS Fargate on main branch pushes
+The CI/CD pipeline handles everything from there — Terraform apply, Docker build, ECS deployment, and health checks.
+
+### Tear Down
+
+Trigger the **Destroy Infrastructure** workflow from GitHub Actions. Database is automatically snapshotted before deletion and restored on the next deploy.
+
+---
 
 ## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | Required |
-| `JWT_SECRET_KEY` | Secret for JWT signing | Required |
-| `JWT_ALGORITHM` | JWT algorithm | HS256 |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiry | 1440 |
-| `SEED_DEMO_DATA` | Seed demo users on startup | false |
-| `FACE_RECOGNITION_TOLERANCE` | Face matching tolerance | 0.6 |
+| `JWT_SECRET_KEY` | Secret for JWT token signing | Required |
+| `SEED_DEMO_DATA` | Seed demo users on startup | `false` |
+| `APP_ENV` | Environment label | `prod` |
 
-## License
+---
 
-MIT
+## Repository Structure
+
+```
+├── .github/workflows/
+│   ├── deploy.yml             # CI/CD pipeline (test → build → deploy)
+│   └── destroy.yml            # Infrastructure teardown with snapshot
+├── app/
+│   ├── backend/               # FastAPI application
+│   │   ├── app/
+│   │   │   ├── routers/       # API route handlers
+│   │   │   ├── services/      # Business logic
+│   │   │   ├── models.py      # SQLAlchemy ORM models
+│   │   │   ├── schemas.py     # Pydantic request/response schemas
+│   │   │   └── main.py        # Application entrypoint
+│   │   └── tests/             # pytest test suite
+│   └── frontend/              # React SPA
+│       └── src/
+│           ├── components/    # Reusable UI components
+│           ├── pages/         # Route-level page components
+│           └── lib/           # API client and utilities
+├── infra/terraform/           # Infrastructure as Code
+├── bridge.py                  # ESP32 IoT hardware bridge script
+├── Dockerfile                 # Multi-stage production build
+├── docker-compose.yml         # Local development environment
+└── README.md
+```
+
+---

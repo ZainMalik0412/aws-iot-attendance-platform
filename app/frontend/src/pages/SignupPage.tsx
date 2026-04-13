@@ -75,7 +75,7 @@ export default function SignupPage() {
           </div>
           <CardTitle className="text-2xl">Create Account</CardTitle>
           <CardDescription>
-            Sign up for AttendanceMS to get started
+            Sign up for IoT Smart Attendance to get started
           </CardDescription>
         </CardHeader>
         <CardContent>
